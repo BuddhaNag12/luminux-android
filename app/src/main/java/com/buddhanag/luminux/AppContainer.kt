@@ -12,6 +12,7 @@ import com.buddhanag.luminux.data.MediaStorePhotoRepository
 import com.buddhanag.luminux.data.PhotoRepository
 import com.buddhanag.luminux.data.SettingsRepository
 import com.buddhanag.luminux.data.ThumbnailPrefetcher
+import com.buddhanag.luminux.data.journal.JournalRepository
 import com.buddhanag.luminux.designsystem.LiveTileScheduler
 import com.buddhanag.luminux.feature.shell.Navigator
 import kotlinx.coroutines.CoroutineScope
@@ -38,6 +39,8 @@ class AppContainer(val context: Context) {
     val settings = SettingsRepository(PreferenceDataStoreFactory.create { context.preferencesDataStoreFile("settings") })
 
     val photos: PhotoRepository = MediaStorePhotoRepository(context, database.albumDao(), settings, appScope)
+
+    val journal = JournalRepository(context, photos, settings, database.journalDao(), appScope)
 
     val thumbnailPrefetcher by lazy { ThumbnailPrefetcher(context, SingletonImageLoader.get(context)) }
 

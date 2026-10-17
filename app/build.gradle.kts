@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -16,6 +18,9 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "0.1.0"
+        // Places map; without a key the map stays blank but the list still works.
+        val local = Properties().apply { rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use(::load) }
+        manifestPlaceholders["mapsApiKey"] = local.getProperty("MAPS_API_KEY", "")
     }
 
     buildTypes {
@@ -55,6 +60,8 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.coil.compose)
     implementation(libs.androidx.exifinterface)
+    implementation(libs.maps.compose)
+    implementation(libs.maps.compose.utils)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
 }

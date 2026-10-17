@@ -11,6 +11,10 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.RoomDatabase
 import androidx.room.Transaction
+import com.buddhanag.luminux.data.journal.JournalDao
+import com.buddhanag.luminux.data.journal.JournalNoteEntity
+import com.buddhanag.luminux.data.journal.PhotoLocationEntity
+import com.buddhanag.luminux.data.journal.PlaceNameEntity
 import kotlinx.coroutines.flow.Flow
 
 /** An app-only album. The title is kept as typed; [Album.title] lowercases it. */
@@ -65,7 +69,12 @@ interface AlbumDao {
     }
 }
 
-@Database(entities = [AlbumRow::class, AlbumMemberRow::class], version = 1)
+// Version 2 adds the journal tables. No migration: the app is unreleased (uninstall to upgrade a dev install).
+@Database(
+    entities = [AlbumRow::class, AlbumMemberRow::class, JournalNoteEntity::class, PlaceNameEntity::class, PhotoLocationEntity::class],
+    version = 2,
+)
 abstract class LuminuxDatabase : RoomDatabase() {
     abstract fun albumDao(): AlbumDao
+    abstract fun journalDao(): JournalDao
 }

@@ -71,6 +71,8 @@ import com.buddhanag.luminux.designsystem.MetroAppBar
 import com.buddhanag.luminux.designsystem.MetroMetrics
 import com.buddhanag.luminux.designsystem.MetroMotion
 import com.buddhanag.luminux.designsystem.MetroPalette
+import com.buddhanag.luminux.feature.pro.ProScreen
+import com.buddhanag.luminux.feature.pro.ProTrial
 import com.buddhanag.luminux.designsystem.MetroText
 import com.buddhanag.luminux.designsystem.MetroThemeMode
 import com.buddhanag.luminux.designsystem.MetroType
@@ -108,7 +110,7 @@ internal fun ViewerScreen(request: ViewerRequest, navigator: Navigator, zoom: Vi
     val assets = remember(snapshot, request.source) { photos.items(request.source) }
     // The pager's count and key lambdas outlive a composition; both read the newest list, or a new copy indexes past the end.
     val latestAssets by rememberUpdatedState(assets)
-    val isProUnlocked by container.isProUnlocked.collectAsStateWithLifecycle()
+    val isProUnlocked by container.proStore.isUnlocked.collectAsStateWithLifecycle()
     val pager = rememberPagerState(
         initialPage = remember { assets.indexOfFirst { it.id == request.startId }.takeIf { it >= 0 } ?: request.startIndex },
     ) { latestAssets.size }
@@ -403,15 +405,22 @@ internal fun ViewerScreen(request: ViewerRequest, navigator: Navigator, zoom: Vi
         AddToAlbumSheet(addToAlbum) { addToAlbum = null }
     }
     slideshowStart?.let { start -> SlideshowScreen(assets, start, onClose = { slideshowStart = null }) }
+    // The action runs once the page is gone: after an earned ad, or when Pro was bought on the page.
     proOffer?.let { offer ->
-        ProOfferPage(
-            offer.title,
-            onTrial = {
-                proOffer = null
-                offer.action()
-            },
-            onClose = { proOffer = null },
-        )
+        CompositionLocalProvider(LocalMetro provides outerPalette) {
+            Box(Modifier.fillMaxSize().pointerInput(Unit) { swallowTouches() }) {
+                ProScreen(
+                    ProTrial(offer.title) {
+                        proOffer = null
+                        offer.action()
+                    },
+                    onClose = {
+                        proOffer = null
+                        if (container.proStore.isUnlocked.value) offer.action()
+                    },
+                )
+            }
+        }
     }
 }
 

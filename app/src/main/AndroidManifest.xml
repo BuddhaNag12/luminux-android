@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
     <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
     <!-- No WRITE permission: inserting our own copies and createFavorite/TrashRequest don't need one. -->
+    <!-- Ads are always non-personalised and the app never tracks (iOS never asks for IDFA), so no advertising ID. -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
 
     <application
         android:name=".LuminuxApplication"
@@ -31,6 +33,14 @@
                 <data android:scheme="luminux" />
             </intent-filter>
         </activity>
+        <!-- Debug builds and empty release config use Google's sample app (app/build.gradle.kts). -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="${admobAppId}" />
+        <!-- Nothing of the ads SDK should run before someone chooses an ad (spec 09). -->
+        <meta-data
+            android:name="com.google.android.gms.ads.DELAY_APP_MEASUREMENT_INIT"
+            android:value="true" />
         <!-- Lifted subjects are copied and shared from the cache as PNGs. -->
         <provider
             android:name="androidx.core.content.FileProvider"

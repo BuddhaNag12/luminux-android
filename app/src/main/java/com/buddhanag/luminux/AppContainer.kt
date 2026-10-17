@@ -16,13 +16,17 @@ import com.buddhanag.luminux.data.hub.HubTilesRepository
 import com.buddhanag.luminux.data.journal.JournalRepository
 import com.buddhanag.luminux.designsystem.LiveTileScheduler
 import com.buddhanag.luminux.feature.shell.Navigator
+import com.buddhanag.luminux.monetization.AdConsent
+import com.buddhanag.luminux.monetization.NewsAds
+import com.buddhanag.luminux.monetization.NewsFeed
+import com.buddhanag.luminux.monetization.PlayBillingGateway
+import com.buddhanag.luminux.monetization.ProStore
+import com.buddhanag.luminux.monetization.RewardedAds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
@@ -30,14 +34,17 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
-/** Manual DI. Billing, ads and news join from spec 09. */
+/** Manual DI. */
 class AppContainer(val context: Context) {
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     val database: LuminuxDatabase = Room.databaseBuilder(context, LuminuxDatabase::class.java, "luminux.db").build()
 
-    val settings = SettingsRepository(PreferenceDataStoreFactory.create { context.preferencesDataStoreFile("settings") })
+    private val settingsStore = PreferenceDataStoreFactory.create { context.preferencesDataStoreFile("settings") }
+
+    val settings = SettingsRepository(settingsStore)
 
     val photos: PhotoRepository = MediaStorePhotoRepository(context, database.albumDao(), settings, appScope)
 
@@ -60,11 +67,22 @@ class AppContainer(val context: Context) {
     /** One clock for every live tile, so they take turns flipping. */
     val liveTileScheduler by lazy { LiveTileScheduler(MainScope()) }
 
-    // shortcut: nobody has bought Pro until spec 09's ProStore replaces these; debug builds count as test builds.
-    val isProUnlocked: StateFlow<Boolean> = MutableStateFlow(false)
-    val isTestBuild = BuildConfig.DEBUG
+    // shortcut: no widget yet, so a change of Pro reloads nothing; spec 10's WidgetUpdater.resetAndUpdateAll goes here.
+    val proStore = ProStore(settingsStore, PlayBillingGateway(context), appScope) {}
+
+    val news = NewsFeed(settingsStore, BuildConfig.NEWS_URL.ifEmpty { null })
+
+    // Lazy, so Pro users and people who never choose an ad never load the ads SDK's classes.
+    val adConsent by lazy { AdConsent(context) }
+    val rewardedAds by lazy { RewardedAds(context, adConsent) }
+    val newsAds by lazy { NewsAds(context, adConsent) }
 
     init {
+        // The last known Pro and news switches before the first frame, so the hub's panels don't flicker in and out.
+        runBlocking {
+            proStore.load()
+            news.load()
+        }
         startLiveTileExport()
     }
 

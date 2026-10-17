@@ -140,8 +140,8 @@ fun AssetGrid(
     val snapshot by container.photos.snapshot.collectAsStateWithLifecycle()
     val items = remember(snapshot, source) { container.photos.items(source) }
     val settings by container.settings.settings.collectAsStateWithLifecycle(initialValue = null)
-    val isProUnlocked by container.isProUnlocked.collectAsStateWithLifecycle()
-    val unlocksPro = isProUnlocked || container.isTestBuild
+    val isProUnlocked by container.proStore.isUnlocked.collectAsStateWithLifecycle()
+    val unlocksPro = isProUnlocked || container.proStore.isTestBuild
     // Grid sizes come with Pro; without it every grid stays at the default. A pinch switches this at once, and the
     // saved value catches up a moment later.
     val savedColumns = settings?.gridColumns ?: GridZoom.DEFAULT_COLUMNS

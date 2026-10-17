@@ -37,7 +37,7 @@ fun HubPinningHost(request: PinRequest?, onConsumed: () -> Unit) {
         val pending = request ?: return@LaunchedEffect
         onConsumed()
         // isUnlocked, not unlocksPro, so test builds still meet the limit.
-        if (!hubTiles.canPin(isPro = container.isProUnlocked.value)) {
+        if (!hubTiles.canPin(isPro = container.proStore.isUnlocked.value)) {
             showsLimit = true
             return@LaunchedEffect
         }

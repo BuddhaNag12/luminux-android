@@ -1,41 +1,30 @@
 package com.buddhanag.luminux.feature.shell
 
 import android.net.Uri
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import com.buddhanag.luminux.container
 import com.buddhanag.luminux.data.AlbumIds
 import com.buddhanag.luminux.data.SettingsKeys
 import com.buddhanag.luminux.designsystem.Accent
-import com.buddhanag.luminux.designsystem.LocalMetro
-import com.buddhanag.luminux.designsystem.MetroMetrics
-import com.buddhanag.luminux.designsystem.MetroText
-import com.buddhanag.luminux.designsystem.MetroType
-import com.buddhanag.luminux.designsystem.metroFeather
 import com.buddhanag.luminux.feature.collection.AlbumScreen
 import com.buddhanag.luminux.feature.collection.CollectionScreen
 import com.buddhanag.luminux.feature.hub.HubScreen
 import com.buddhanag.luminux.feature.hub.PhotoSetScreen
 import com.buddhanag.luminux.feature.settings.AboutScreen
-import com.buddhanag.luminux.feature.settings.PageHeader
 import com.buddhanag.luminux.feature.settings.SettingsScreen
 import com.buddhanag.luminux.feature.journal.JournalEntryScreen
 import com.buddhanag.luminux.feature.journal.JournalScreen
 import com.buddhanag.luminux.feature.places.PlaceScreen
+import com.buddhanag.luminux.feature.pro.ProScreen
 import kotlinx.coroutines.flow.filter
 import com.buddhanag.luminux.feature.viewer.ViewerHost
 
@@ -45,15 +34,17 @@ fun AppShell(pendingDeepLink: MutableState<Uri?>) {
     val container = LocalContext.current.container
     val navigator = container.navigator
     val settings by container.settings.settings.collectAsStateWithLifecycle(initialValue = null)
-    val isProUnlocked by container.isProUnlocked.collectAsStateWithLifecycle()
-    val unlocksPro = isProUnlocked || container.isTestBuild
+    val isProUnlocked by container.proStore.isUnlocked.collectAsStateWithLifecycle()
+    val unlocksPro = isProUnlocked || container.proStore.isTestBuild
 
     // A refunded purchase takes its custom colour with it.
     LaunchedEffect(unlocksPro, settings?.accentHex) {
         val hex = settings?.accentHex ?: return@LaunchedEffect
         if (!unlocksPro && !Accent(hex).isPreset) container.settings.set(SettingsKeys.accent, Accent.Cobalt.hex)
     }
-    // shortcut: proStore.refresh() joins with spec 09.
+    // Play has no refund stream, so re-read the purchases on every resume (also catches pending → purchased).
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(Unit) { lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) { container.proStore.refresh() } }
     LaunchedEffect(Unit) { container.journal.keepBuilt() }
     // Pinned albums that are gone take their tiles with them; smart albums always exist, even when empty and unlisted.
     LaunchedEffect(Unit) {
@@ -75,33 +66,12 @@ fun AppShell(pendingDeepLink: MutableState<Uri?>) {
                 Route.About -> AboutScreen()
                 is Route.Collection -> CollectionScreen(route.page, route.showsJumpList)
                 is Route.Album -> AlbumScreen(route.id)
-                Route.Pro -> Placeholder("pro", "09")
+                Route.Pro -> ProScreen()
                 Route.Journal -> JournalScreen()
                 is Route.JournalEntry -> JournalEntryScreen(route.id)
                 is Route.PhotoSet -> PhotoSetScreen(route.id)
                 is Route.Place -> PlaceScreen(route.id)
             }
         }
-    }
-}
-
-// shortcut: stand-ins so every route can be opened and navigation checked; each is replaced by its spec's screen.
-@Composable
-private fun Placeholder(title: String, spec: String) = PlaceholderPage(title, "This page comes with spec $spec.") {}
-
-@Composable
-private fun PlaceholderPage(title: String, note: String, links: @Composable () -> Unit) {
-    val metro = LocalMetro.current
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(metro.background)
-            .windowInsetsPadding(WindowInsets.safeDrawing)
-            .padding(horizontal = MetroMetrics.margin + 12.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
-    ) {
-        PageHeader(title, Modifier.metroFeather(row = 0))
-        MetroText(note, MetroType.body, Modifier.metroFeather(row = 1), color = metro.secondary)
-        links()
     }
 }

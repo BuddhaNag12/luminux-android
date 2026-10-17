@@ -25,6 +25,10 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import com.buddhanag.luminux.feature.news.NewsPanel
+import com.buddhanag.luminux.feature.pro.ProPitch
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -85,7 +89,6 @@ import com.buddhanag.luminux.feature.settings.effectiveBackground
 import com.buddhanag.luminux.feature.shell.Route
 
 /** The collection panel's index; it moves to 1 once spec 09's news panel sits to its left. */
-private const val COLLECTION_PANEL = 0
 
 /**
  * The photos hub (HubView.swift): a panorama with collection tiles, recent photos, the journal and favorites over a
@@ -101,21 +104,30 @@ fun HubScreen() {
     val access by container.photos.access.collectAsStateWithLifecycle()
     val journal by container.journal.state.collectAsStateWithLifecycle()
     val layout by repo.layout.collectAsStateWithLifecycle()
-    val isProUnlocked by container.isProUnlocked.collectAsStateWithLifecycle()
-    val unlocksPro = isProUnlocked || container.isTestBuild
+    val isProUnlocked by container.proStore.isUnlocked.collectAsStateWithLifecycle()
+    val unlocksPro = isProUnlocked || container.proStore.isTestBuild
     val reduceMotion = LocalReduceMotion.current
     val edit = remember { HubEditState() }
-    var panel by remember { mutableIntStateOf(COLLECTION_PANEL) }
+    val news by container.news.state.collectAsStateWithLifecycle()
+    val showsNews = !isProUnlocked && news.isEnabled
+    // The news panel sits left of the collection, and the hub opens on the collection.
+    val collectionPanel = if (showsNews) 1 else 0
+    var panel by remember { mutableIntStateOf(collectionPanel) }
+    val scope = rememberCoroutineScope()
     var isAppBarExpanded by remember { mutableStateOf(false) }
 
     val activity = LocalActivity.current
+    LaunchedEffect(isProUnlocked) {
+        // Picks up the remote switch quietly; ads wait until the panel is actually shown.
+        if (isProUnlocked) container.newsAds.clear() else container.news.refreshIfStale()
+    }
     // Under partial access, asking again shows the system's reselect sheet.
     val chooseMore = rememberLauncherForActivityResult(RequestMultiplePermissions()) { activity?.let(container.photos::onPermissionResult) }
     val isLimited = access == MediaAccess.LIMITED
 
     val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
     val tracksHub = lifecycleState.isAtLeast(Lifecycle.State.RESUMED) && navigator.path.isEmpty() && navigator.viewer == null
-    val tilesPaused = !(tracksHub && panel == COLLECTION_PANEL)
+    val tilesPaused = !(tracksHub && panel == collectionPanel)
     val scheduler = LocalLiveTileScheduler.current
     LaunchedEffect(tilesPaused) { scheduler.isPaused = tilesPaused }
     LaunchedEffect(settings.animatesLiveTiles) { scheduler.isAnimated = settings.animatesLiveTiles }
@@ -138,11 +150,12 @@ fun HubScreen() {
             },
         ) { padding ->
             val bottom = padding.calculateBottomPadding()
-            // shortcut: spec 09 adds the "top stories" news panel (leadingTitle "news", startPanel 1) on the left and the
-            // "pro" panel on the right; COLLECTION_PANEL moves with it.
             Panorama(
                 "photos",
-                panels = listOf(
+                leadingTitle = if (showsNews) "news" else null,
+                startPanel = collectionPanel,
+                panels = listOfNotNull(
+                    if (showsNews) ({ NewsPanel(bottom) }) else null,
                     {
                         CollectionPanel(edit, bottom) {
                             item {
@@ -189,10 +202,20 @@ fun HubScreen() {
                             )
                         }
                     },
+                    if (!isProUnlocked) ({
+                        PanoramaSection("pro", bottomInset = bottom) {
+                            item { ProPitch(Modifier.padding(end = MetroMetrics.margin + 12.dp), firstRow = 2) }
+                        }
+                    }) else null,
                 ),
                 onPanelChange = {
                     panel = it
                     edit.end()
+                    // The only path that loads native ads: swiping to the news panel.
+                    if (showsNews && it == 0 && activity != null) scope.launch {
+                        container.news.refreshIfStale()
+                        container.newsAds.prepare(activity, container.news.state.value.articles.size)
+                    }
                 },
                 background = if (settings.showsHubBackground) {
                     {

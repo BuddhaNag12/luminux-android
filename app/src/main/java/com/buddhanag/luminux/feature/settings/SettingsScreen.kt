@@ -1,5 +1,6 @@
 package com.buddhanag.luminux.feature.settings
 
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.Image
 import androidx.datastore.preferences.core.Preferences
 import androidx.compose.foundation.background
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -67,14 +69,20 @@ fun SettingsScreen() {
     val navigator = container.navigator
     val repo = container.settings
     val settings by repo.settings.collectAsStateWithLifecycle(initialValue = AppSettings())
-    val isProUnlocked by container.isProUnlocked.collectAsStateWithLifecycle()
-    val unlocksPro = isProUnlocked || container.isTestBuild
+    val isProUnlocked by container.proStore.isUnlocked.collectAsStateWithLifecycle()
+    val unlocksPro = isProUnlocked || container.proStore.isTestBuild
     val scope = rememberCoroutineScope()
     var page by rememberSaveable { mutableIntStateOf(0) }
     var showsBackgroundPicker by rememberSaveable { mutableStateOf(false) }
     var showsTour by rememberSaveable { mutableStateOf(false) }
     var showsColorPicker by rememberSaveable { mutableStateOf(false) }
-    // shortcut: spec 09 adds proStore.refresh() and, without Pro, adConsent.refreshPrivacyOptions() on appear.
+    val price by container.proStore.price.collectAsStateWithLifecycle()
+    val activity = LocalActivity.current
+    val needsPrivacyOptions by container.adConsent.needsPrivacyOptions.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) {
+        container.proStore.refresh()
+        if (!container.proStore.isUnlocked.value) activity?.let { container.adConsent.refreshPrivacyOptions(it) }
+    }
 
     Box(Modifier.fillMaxSize()) {
         Pivot(
@@ -97,7 +105,9 @@ fun SettingsScreen() {
                 PivotPage("about") {
                     SettingsPage {
                         AboutPage(
-                            isProUnlocked,
+                            isProUnlocked, price,
+                            showsPrivacyChoices = needsPrivacyOptions && !isProUnlocked,
+                            onPrivacyChoices = { activity?.let(container.adConsent::presentPrivacyOptions) },
                             onPro = { navigator.push(Route.Pro) },
                             onTour = { showsTour = true },
                             onAbout = { navigator.push(Route.About) },
@@ -251,10 +261,18 @@ private fun ColumnScope.LookPage(
 }
 
 @Composable
-private fun ColumnScope.AboutPage(isProUnlocked: Boolean, onPro: () -> Unit, onTour: () -> Unit, onAbout: () -> Unit) {
-    ProCard(isProUnlocked, onPro, Modifier.metroFeather(row = 1).padding(bottom = 28.dp))
+private fun ColumnScope.AboutPage(
+    isProUnlocked: Boolean,
+    price: String?,
+    showsPrivacyChoices: Boolean,
+    onPrivacyChoices: () -> Unit,
+    onPro: () -> Unit,
+    onTour: () -> Unit,
+    onAbout: () -> Unit,
+) {
+    ProCard(isProUnlocked, price, onPro, Modifier.metroFeather(row = 1).padding(bottom = 28.dp))
     Column(Modifier.metroFeather(row = 2), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-        // shortcut: "ad privacy choices" joins with spec 09's AdConsent (needsPrivacyOptions && !isUnlocked).
+        if (showsPrivacyChoices) LinkRow("ad privacy choices", "What Google may use to pick ads", onClick = onPrivacyChoices)
         LinkRow("take the tour", "What Luminux can do, page by page", onClick = onTour)
         LinkRow("about and licences", "Version, fonts and their licences", onClick = onAbout)
     }
@@ -262,7 +280,7 @@ private fun ColumnScope.AboutPage(isProUnlocked: Boolean, onPro: () -> Unit, onT
 
 /** An accent block that opens the Pro page, or a quiet thank-you once it's bought. */
 @Composable
-private fun ProCard(isProUnlocked: Boolean, onPro: () -> Unit, modifier: Modifier) {
+private fun ProCard(isProUnlocked: Boolean, price: String?, onPro: () -> Unit, modifier: Modifier) {
     val metro = LocalMetro.current
     if (isProUnlocked) {
         Row(
@@ -298,8 +316,10 @@ private fun ProCard(isProUnlocked: Boolean, onPro: () -> Unit, modifier: Modifie
                 Modifier.padding(top = 4.dp), color = Color.White.copy(alpha = 0.85f),
             )
             Spacer(Modifier.height(16.dp))
-            // shortcut: spec 09 shows "<price>, once. No subscription." once Play Billing has the product.
-            MetroText("One payment. No subscription.", metroFont(15.sp, FontWeight.SemiBold), color = Color.White)
+            MetroText(
+                price?.let { "$it, once. No subscription." } ?: "One payment. No subscription.",
+                metroFont(15.sp, FontWeight.SemiBold), color = Color.White,
+            )
         }
     }
 }

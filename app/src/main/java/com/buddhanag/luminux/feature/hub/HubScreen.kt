@@ -222,11 +222,13 @@ internal fun routeFor(kind: HubTileKind): Route = when (kind) {
 }
 
 /**
- * The collection panel. Unlike [PanoramaSection], its list starts [EditButtonReach] higher with that much top
- * padding, so a top-row tile's unpin button isn't clipped off; a tap between or below the tiles leaves edit mode.
+ * The collection panel. While editing, unlike [PanoramaSection], its list starts [EditButtonReach] higher with that much
+ * top padding, so a top-row tile's unpin button isn't clipped off (the tiles stay put); a tap between or below the
+ * tiles leaves edit mode.
  */
 @Composable
 private fun CollectionPanel(edit: HubEditState, bottomInset: Dp, content: LazyListScope.() -> Unit) {
+    val room = if (edit.isEditing) EditButtonReach else 0.dp
     Column(
         Modifier
             .fillMaxSize()
@@ -238,8 +240,8 @@ private fun CollectionPanel(edit: HubEditState, bottomInset: Dp, content: LazyLi
             Modifier.metroFeather(row = 1).padding(start = MetroMetrics.margin).semantics { heading() },
         )
         LazyColumn(
-            Modifier.fillMaxWidth().offset(y = -EditButtonReach),
-            contentPadding = PaddingValues(start = MetroMetrics.margin, top = EditButtonReach, bottom = 24.dp + bottomInset),
+            Modifier.fillMaxWidth().offset(y = -room),
+            contentPadding = PaddingValues(start = MetroMetrics.margin, top = room, bottom = 24.dp + bottomInset),
             content = content,
         )
     }

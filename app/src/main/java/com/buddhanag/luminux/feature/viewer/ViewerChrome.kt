@@ -1,6 +1,5 @@
 package com.buddhanag.luminux.feature.viewer
 
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
@@ -8,17 +7,9 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -28,7 +19,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerInputScope
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
@@ -38,9 +28,6 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.buddhanag.luminux.designsystem.LocalMetro
-import com.buddhanag.luminux.designsystem.MetroMetrics
-import com.buddhanag.luminux.designsystem.MetroText
-import com.buddhanag.luminux.designsystem.MetroType
 import com.buddhanag.luminux.designsystem.Semilight
 import com.buddhanag.luminux.designsystem.metroFont
 
@@ -66,31 +53,6 @@ internal fun Spinner(modifier: Modifier = Modifier) {
     )
     Canvas(modifier.size(24.dp).graphicsLayer { rotationZ = turn }) {
         drawArc(accent, 0f, 270f, useCenter = false, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
-    }
-}
-
-/**
- * shortcut: a stand-in for spec 09's Pro page with a use-once trial, so the viewer's gates and their "run after the
- * page closes" order can be exercised; 09 replaces it with ProScreen(trial = …) and a rewarded ad.
- */
-@Composable
-internal fun ProOfferPage(trialTitle: String, onTrial: () -> Unit, onClose: () -> Unit) {
-    val metro = LocalMetro.current
-    BackHandler(onBack = onClose)
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(metro.background)
-            .pointerInput(Unit) { swallowTouches() }
-            .windowInsetsPadding(WindowInsets.safeDrawing)
-            .padding(horizontal = MetroMetrics.margin + 12.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
-    ) {
-        MetroText("LUMINUX", MetroType.overline)
-        MetroText("pro", MetroType.title, Modifier.offset(x = (-3).dp))
-        MetroText("This page comes with spec 09.", MetroType.body, color = metro.secondary)
-        TextButton(trialTitle, onTrial)
-        TextButton("not now", onClose)
     }
 }
 

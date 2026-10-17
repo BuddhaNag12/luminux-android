@@ -57,7 +57,7 @@ fun AboutScreen() {
         PageHeader("about", Modifier.metroFeather(row = 0).padding(bottom = 24.dp))
         LogoLockup(metro.background, Modifier.padding(bottom = 24.dp), unit = 0.8f)
         MetroText(
-            if (context.container.isTestBuild) "$version · test build, custom colours unlocked" else version,
+            if (context.container.proStore.isTestBuild) "$version · test build, custom colours unlocked" else version,
             MetroType.body, Modifier.metroFeather(row = 1).padding(bottom = 28.dp), color = metro.secondary,
         )
         MetroText("Selawik font", metroFont(20.sp, Semilight), Modifier.metroFeather(row = 2).padding(bottom = 10.dp), color = metro.secondary)

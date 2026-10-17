@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Luminux</string>
+    <string name="ad_sponsored_badge" translatable="false">SPONSORED</string>
+    <string name="ad_sponsored">Sponsored</string>
 </resources>

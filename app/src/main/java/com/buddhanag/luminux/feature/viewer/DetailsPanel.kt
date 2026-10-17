@@ -128,7 +128,7 @@ internal fun DetailsPanel(
                         SelectionContainer { MetroText(row.value, MetroType.body) }
                     }
                 }
-                // shortcut: the 200 dp lite-mode mini map (Maps Compose is in now) goes here once MAPS_API_KEY is set; without a key it draws a blank box.
+                // shortcut: the iOS 200 dp mini map goes here once the app has a Maps API key and Maps Compose again.
             }
             Spacer(Modifier.size(40.dp))
             Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))

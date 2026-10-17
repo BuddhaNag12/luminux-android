@@ -8,7 +8,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts.StartIntentSenderForResult
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
-import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.fadeIn
@@ -98,7 +99,7 @@ private class ProOffer(val title: String, val action: () -> Unit)
  * Full-screen photo and video viewer (ViewerView.swift): swipe paging, zoom, a drag down to close and up for
  * details, and the Metro app bar.
  */
-@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun ViewerScreen(request: ViewerRequest, navigator: Navigator, zoom: ViewerZoom, visibility: AnimatedVisibilityScope) {
     val context = LocalContext.current
@@ -204,9 +205,16 @@ internal fun ViewerScreen(request: ViewerRequest, navigator: Navigator, zoom: Vi
 
     suspend fun liftSubject(item: MediaItem) = runCatching { SubjectLift.lift(photos.editPreview(item, SubjectLift.MAX_SIDE)) }.getOrNull()
 
+    // 0 → 1 as the viewer zooms open, back to 0 as it closes; the viewer stays composed until it lands.
+    val zoomFraction by visibility.transition.animateFloat({ MetroMotion.standard() }, label = "zoom") {
+        if (it == EnterExitState.Visible) 1f else 0f
+    }
+    val zooming = visibility.transition.run { currentState != EnterExitState.Visible || targetState != EnterExitState.Visible }
+
     val outerPalette = LocalMetro.current
     CompositionLocalProvider(LocalMetro provides MetroPalette(MetroThemeMode.Dark, outerPalette.accent)) {
-        BoxWithConstraints(Modifier.fillMaxSize()) {
+        // The black backdrop and the chrome fade with the zoom; the flying photo is drawn on top at full strength.
+        BoxWithConstraints(Modifier.fillMaxSize().graphicsLayer { alpha = zoomFraction }) {
             val panelHeight = (maxHeight.value * 0.55f).roundToInt().toFloat()
             fun rubberBand(l: Float) = if (l <= panelHeight) max(l, 0f) else panelHeight + (l - panelHeight) * 0.2f
 
@@ -297,11 +305,10 @@ internal fun ViewerScreen(request: ViewerRequest, navigator: Navigator, zoom: Vi
                 ) { page ->
                     val item = latestAssets.getOrNull(page) ?: return@HorizontalPager
                     val isCurrent = page == pager.settledPage
-                    val zoomTarget = if (isCurrent) {
-                        with(zoom.scope) { Modifier.sharedElement(rememberSharedContentState(zoomKey(item.id)), visibility) }
-                    } else Modifier
+                    // While the viewer zooms in or out, ZoomStandIn flies the photo; the page itself waits hidden.
+                    val pageModifier = Modifier.graphicsLayer { alpha = if (isCurrent && zooming) 0f else 1f }
                     if (item.type == MediaType.VIDEO) {
-                        VideoPage(item, isCurrent, playback, ::onTap, zoomTarget)
+                        VideoPage(item, isCurrent, playback, ::onTap, pageModifier)
                     } else {
                         PhotoPage(
                             item, isCurrent,
@@ -311,10 +318,12 @@ internal fun ViewerScreen(request: ViewerRequest, navigator: Navigator, zoom: Vi
                             onLongPress = { onLongPress(item) },
                             onZoomChange = { if (page == pager.settledPage) isZoomed = it },
                             onCopySubject = { copySubject(item) },
-                            modifier = zoomTarget,
+                            modifier = pageModifier,
                         )
                     }
                 }
+                // Outside the pager, whose items report positions a page off, but inside the dismiss transform.
+                current?.let { item -> ZoomTarget(item) { zoom.page = it } }
                 lifted?.let { LiftedSubject(it, onPutDown = { lifted = null }) }
             }
 
@@ -398,6 +407,7 @@ internal fun ViewerScreen(request: ViewerRequest, navigator: Navigator, zoom: Vi
                 }
             }
         }
+        if (zooming) current?.let { item -> ZoomStandIn(item, zoom.tiles[item.id], zoom.page, zoomFraction) }
     }
 
     CompositionLocalProvider(LocalMetro provides outerPalette) {

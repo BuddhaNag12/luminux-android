@@ -1,0 +1,14 @@
+# Port plan and specs stay local
+docs/
+
+# graphify output
+graphify-out/
+
+# Android build
+.gradle/
+.kotlin/
+build/
+local.properties
+.idea/
+*.keystore
+*.jks

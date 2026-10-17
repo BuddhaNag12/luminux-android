@@ -1,0 +1,6 @@
+<resources>
+    <!-- Splash and light/dark switching come with spec 04. -->
+    <style name="Theme.Luminux" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
+</resources>

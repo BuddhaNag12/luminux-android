@@ -25,6 +25,8 @@ import com.buddhanag.luminux.designsystem.MetroMetrics
 import com.buddhanag.luminux.designsystem.MetroText
 import com.buddhanag.luminux.designsystem.MetroType
 import com.buddhanag.luminux.designsystem.metroFeather
+import com.buddhanag.luminux.feature.collection.AlbumScreen
+import com.buddhanag.luminux.feature.collection.CollectionScreen
 import com.buddhanag.luminux.feature.settings.AboutScreen
 import com.buddhanag.luminux.feature.settings.LinkRow
 import com.buddhanag.luminux.feature.settings.PageHeader
@@ -55,8 +57,8 @@ fun AppShell(pendingDeepLink: MutableState<Uri?>) {
         when (route) {
             Route.Settings -> SettingsScreen()
             Route.About -> AboutScreen()
-            is Route.Collection -> Placeholder("collection", "06")
-            is Route.Album -> Placeholder("album", "06")
+            is Route.Collection -> CollectionScreen(route.page, route.showsJumpList)
+            is Route.Album -> AlbumScreen(route.id)
             Route.Pro -> Placeholder("pro", "09")
             Route.Journal -> Placeholder("journal", "08")
             is Route.JournalEntry -> Placeholder("journal entry", "08")

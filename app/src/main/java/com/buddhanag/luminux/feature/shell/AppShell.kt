@@ -29,6 +29,9 @@ import com.buddhanag.luminux.feature.settings.AboutScreen
 import com.buddhanag.luminux.feature.settings.LinkRow
 import com.buddhanag.luminux.feature.settings.PageHeader
 import com.buddhanag.luminux.feature.settings.SettingsScreen
+import com.buddhanag.luminux.feature.journal.JournalEntryScreen
+import com.buddhanag.luminux.feature.journal.JournalScreen
+import com.buddhanag.luminux.feature.places.PlaceScreen
 
 /** AppShell (LuminuxApp.swift): the hub with the page stack over it, deep links and the app-wide side effects. */
 @Composable
@@ -45,6 +48,7 @@ fun AppShell(pendingDeepLink: MutableState<Uri?>) {
         if (!unlocksPro && !Accent(hex).isPreset) container.settings.set(SettingsKeys.accent, Accent.Cobalt.hex)
     }
     // shortcut: proStore.refresh() (09), the journal rebuild (08) and the hub pin prune (05) join with those specs.
+    LaunchedEffect(Unit) { container.journal.keepBuilt() }
     LaunchedEffect(pendingDeepLink.value) {
         val uri = pendingDeepLink.value ?: return@LaunchedEffect
         navigator.handleDeepLink(uri, isProUnlocked)
@@ -58,10 +62,10 @@ fun AppShell(pendingDeepLink: MutableState<Uri?>) {
             is Route.Collection -> Placeholder("collection", "06")
             is Route.Album -> Placeholder("album", "06")
             Route.Pro -> Placeholder("pro", "09")
-            Route.Journal -> Placeholder("journal", "08")
-            is Route.JournalEntry -> Placeholder("journal entry", "08")
+            Route.Journal -> JournalScreen()
+            is Route.JournalEntry -> JournalEntryScreen(route.id)
             is Route.PhotoSet -> Placeholder("photo set", "05")
-            is Route.Place -> Placeholder("place", "08")
+            is Route.Place -> PlaceScreen(route.id)
         }
     }
     // shortcut: the full-screen viewer over the stack (navigator.viewer) comes with spec 07.

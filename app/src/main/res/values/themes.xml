@@ -1,6 +1,8 @@
 <resources>
-    <!-- Splash and light/dark switching come with spec 04. -->
+    <!-- Black with no icon: the Compose launch animation takes over at once, on the same black, so nothing flashes. -->
     <style name="Theme.Luminux" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:windowSplashScreenBackground">@android:color/black</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_blank</item>
     </style>
 </resources>

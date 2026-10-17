@@ -12,10 +12,15 @@ import com.buddhanag.luminux.data.MediaStorePhotoRepository
 import com.buddhanag.luminux.data.PhotoRepository
 import com.buddhanag.luminux.data.SettingsRepository
 import com.buddhanag.luminux.data.ThumbnailPrefetcher
+import com.buddhanag.luminux.designsystem.LiveTileScheduler
+import com.buddhanag.luminux.feature.shell.Navigator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
@@ -41,6 +46,15 @@ class AppContainer(val context: Context) {
     val liveTileExporter by lazy {
         LiveTileExporter(context, SingletonImageLoader.get(context), photos, liveTileStore, photoSet = { null })
     }
+
+    val navigator = Navigator()
+
+    /** One clock for every live tile, so they take turns flipping. */
+    val liveTileScheduler by lazy { LiveTileScheduler(MainScope()) }
+
+    // shortcut: nobody has bought Pro until spec 09's ProStore replaces these; debug builds count as test builds.
+    val isProUnlocked: StateFlow<Boolean> = MutableStateFlow(false)
+    val isTestBuild = BuildConfig.DEBUG
 
     init {
         startLiveTileExport()

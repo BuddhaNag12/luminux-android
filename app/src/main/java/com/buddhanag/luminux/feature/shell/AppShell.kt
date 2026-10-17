@@ -37,6 +37,7 @@ import com.buddhanag.luminux.feature.journal.JournalEntryScreen
 import com.buddhanag.luminux.feature.journal.JournalScreen
 import com.buddhanag.luminux.feature.places.PlaceScreen
 import kotlinx.coroutines.flow.filter
+import com.buddhanag.luminux.feature.viewer.ViewerHost
 
 /** AppShell (LuminuxApp.swift): the hub with the page stack over it, deep links and the app-wide side effects. */
 @Composable
@@ -66,20 +67,22 @@ fun AppShell(pendingDeepLink: MutableState<Uri?>) {
         pendingDeepLink.value = null
     }
 
-    MetroStack(navigator, root = { HubScreen() }) { route ->
-        when (route) {
-            Route.Settings -> SettingsScreen()
-            Route.About -> AboutScreen()
-            is Route.Collection -> CollectionScreen(route.page, route.showsJumpList)
-            is Route.Album -> AlbumScreen(route.id)
-            Route.Pro -> Placeholder("pro", "09")
-            Route.Journal -> JournalScreen()
-            is Route.JournalEntry -> JournalEntryScreen(route.id)
-            is Route.PhotoSet -> PhotoSetScreen(route.id)
-            is Route.Place -> PlaceScreen(route.id)
+    // The full-screen viewer over the stack, zooming out of the tile marked with Modifier.zoomSource.
+    ViewerHost(navigator) {
+        MetroStack(navigator, root = { HubScreen() }) { route ->
+            when (route) {
+                Route.Settings -> SettingsScreen()
+                Route.About -> AboutScreen()
+                is Route.Collection -> CollectionScreen(route.page, route.showsJumpList)
+                is Route.Album -> AlbumScreen(route.id)
+                Route.Pro -> Placeholder("pro", "09")
+                Route.Journal -> JournalScreen()
+                is Route.JournalEntry -> JournalEntryScreen(route.id)
+                is Route.PhotoSet -> PhotoSetScreen(route.id)
+                is Route.Place -> PlaceScreen(route.id)
+            }
         }
     }
-    // shortcut: the full-screen viewer over the stack (navigator.viewer) comes with spec 07.
 }
 
 // shortcut: stand-ins so every route can be opened and navigation checked; each is replaced by its spec's screen.

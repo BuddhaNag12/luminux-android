@@ -1,5 +1,6 @@
 package com.buddhanag.luminux.designsystem
 
+import com.buddhanag.luminux.data.MonthSection
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable

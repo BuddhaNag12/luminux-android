@@ -71,7 +71,7 @@ import com.buddhanag.luminux.designsystem.MetroSlider
 import com.buddhanag.luminux.designsystem.MetroText
 import com.buddhanag.luminux.designsystem.MetroTile
 import com.buddhanag.luminux.designsystem.MetroType
-import com.buddhanag.luminux.designsystem.MonthSection
+import com.buddhanag.luminux.data.MonthSection
 import com.buddhanag.luminux.designsystem.Panorama
 import com.buddhanag.luminux.designsystem.PanoramaSection
 import com.buddhanag.luminux.designsystem.Pivot

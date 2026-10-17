@@ -1,5 +1,6 @@
 package com.buddhanag.luminux.designsystem
 
+import com.buddhanag.luminux.data.MonthSection
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

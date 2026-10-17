@@ -11,6 +11,9 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.RoomDatabase
 import androidx.room.Transaction
+import com.buddhanag.luminux.data.hub.HubDao
+import com.buddhanag.luminux.data.hub.HubTileEntity
+import com.buddhanag.luminux.data.hub.PhotoSetEntity
 import com.buddhanag.luminux.data.journal.JournalDao
 import com.buddhanag.luminux.data.journal.JournalNoteEntity
 import com.buddhanag.luminux.data.journal.PhotoLocationEntity
@@ -69,12 +72,17 @@ interface AlbumDao {
     }
 }
 
-// Version 2 adds the journal tables. No migration: the app is unreleased (uninstall to upgrade a dev install).
+// Version 2 adds the hub and journal tables. No migration: the app is unreleased (uninstall to upgrade a dev install).
 @Database(
-    entities = [AlbumRow::class, AlbumMemberRow::class, JournalNoteEntity::class, PlaceNameEntity::class, PhotoLocationEntity::class],
+    entities = [
+        AlbumRow::class, AlbumMemberRow::class,
+        HubTileEntity::class, PhotoSetEntity::class,
+        JournalNoteEntity::class, PlaceNameEntity::class, PhotoLocationEntity::class,
+    ],
     version = 2,
 )
 abstract class LuminuxDatabase : RoomDatabase() {
     abstract fun albumDao(): AlbumDao
+    abstract fun hubDao(): HubDao
     abstract fun journalDao(): JournalDao
 }

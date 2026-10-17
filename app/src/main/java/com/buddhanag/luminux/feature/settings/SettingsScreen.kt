@@ -244,7 +244,7 @@ private fun ColumnScope.LookPage(
     if (s.showsHubBackground) {
         val source = effectiveBackground(s, unlocksPro)
         LinkRow(
-            "background from", backgroundName(source, album = { container.photos.album(it)?.title }, photoSet = { null }),
+            "background from", backgroundName(source, album = { container.photos.album(it)?.title }, photoSet = { container.hubTiles.photoSet(it)?.title }),
             Modifier.metroFeather(row = 5).padding(top = 20.dp), onClick = onBackgroundSource,
         )
     }

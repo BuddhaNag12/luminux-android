@@ -29,6 +29,7 @@ import com.buddhanag.luminux.feature.settings.AboutScreen
 import com.buddhanag.luminux.feature.settings.LinkRow
 import com.buddhanag.luminux.feature.settings.PageHeader
 import com.buddhanag.luminux.feature.settings.SettingsScreen
+import com.buddhanag.luminux.feature.viewer.ViewerHost
 
 /** AppShell (LuminuxApp.swift): the hub with the page stack over it, deep links and the app-wide side effects. */
 @Composable
@@ -51,20 +52,22 @@ fun AppShell(pendingDeepLink: MutableState<Uri?>) {
         pendingDeepLink.value = null
     }
 
-    MetroStack(navigator, root = { HubPlaceholder(navigator) }) { route ->
-        when (route) {
-            Route.Settings -> SettingsScreen()
-            Route.About -> AboutScreen()
-            is Route.Collection -> Placeholder("collection", "06")
-            is Route.Album -> Placeholder("album", "06")
-            Route.Pro -> Placeholder("pro", "09")
-            Route.Journal -> Placeholder("journal", "08")
-            is Route.JournalEntry -> Placeholder("journal entry", "08")
-            is Route.PhotoSet -> Placeholder("photo set", "05")
-            is Route.Place -> Placeholder("place", "08")
+    // The full-screen viewer over the stack, zooming out of the tile marked with Modifier.zoomSource.
+    ViewerHost(navigator) {
+        MetroStack(navigator, root = { HubPlaceholder(navigator) }) { route ->
+            when (route) {
+                Route.Settings -> SettingsScreen()
+                Route.About -> AboutScreen()
+                is Route.Collection -> Placeholder("collection", "06")
+                is Route.Album -> Placeholder("album", "06")
+                Route.Pro -> Placeholder("pro", "09")
+                Route.Journal -> Placeholder("journal", "08")
+                is Route.JournalEntry -> Placeholder("journal entry", "08")
+                is Route.PhotoSet -> Placeholder("photo set", "05")
+                is Route.Place -> Placeholder("place", "08")
+            }
         }
     }
-    // shortcut: the full-screen viewer over the stack (navigator.viewer) comes with spec 07.
 }
 
 // shortcut: stand-ins so every route can be opened and navigation checked; each is replaced by its spec's screen.

@@ -42,7 +42,13 @@ import java.time.format.DateTimeFormatter
  * What the faces read: the library, the hub's sets and the "tile patterns" setting. Not a data class, so a fresh one
  * per library change recomposes every face; items come from the repository's per-generation memo.
  */
-internal class TileFaceData(val photos: PhotoRepository, val layout: HubLayout, val animatesPatterns: Boolean)
+/** [placeCovers]: the first photo of each of the most recent places, for the places tile. */
+internal class TileFaceData(
+    val photos: PhotoRepository,
+    val layout: HubLayout,
+    val animatesPatterns: Boolean,
+    val placeCovers: List<MediaItem> = emptyList(),
+)
 
 internal fun tileTitle(kind: HubTileKind, data: TileFaceData): String = when (kind) {
     HubTileKind.CameraRoll -> "camera roll"
@@ -68,9 +74,7 @@ internal fun HubTileFace(tile: HubTile, data: TileFaceData, onClick: () -> Unit,
                 DateFace(isSmall)
             }
             HubTileKind.Favorites -> Photos(photos(AssetSource.Favorites), LiveTileStyle.Slide, HubIcons.heart, tile.size)
-            // shortcut: the newest photo of each of the 8 most recent places needs spec 08's JournalRepository; until
-            // the merge the tile shows its map glyph.
-            HubTileKind.Places -> Photos(emptyList(), LiveTileStyle.Slide, HubIcons.map, tile.size)
+            HubTileKind.Places -> Photos(data.placeCovers, LiveTileStyle.Slide, HubIcons.map, tile.size)
             is HubTileKind.Album -> Photos(photos(AssetSource.Album(kind.id)), LiveTileStyle.Flip, HubIcons.albumStack, tile.size)
             is HubTileKind.PhotoSet -> Photos(
                 photos(AssetSource.Identifiers(data.layout.sets[kind.id]?.photoIds.orEmpty())),

@@ -46,8 +46,15 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.buddhanag.luminux.designsystem.AppBarMenuItem
+import com.buddhanag.luminux.data.MediaItem
+import com.buddhanag.luminux.data.AssetSource
 import com.buddhanag.luminux.container
 import com.buddhanag.luminux.data.journal.JournalEntry
+import com.buddhanag.luminux.feature.actions.AddToAlbumSheet
+import com.buddhanag.luminux.feature.actions.selectionActionButtons
+import com.buddhanag.luminux.feature.grid.AssetGrid
+import com.buddhanag.luminux.feature.grid.SelectionModel
 import com.buddhanag.luminux.designsystem.AppBarButton
 import com.buddhanag.luminux.designsystem.LocalMetro
 import com.buddhanag.luminux.designsystem.MetroAppBarHost
@@ -100,12 +107,19 @@ fun JournalEntryScreen(entryId: String) {
     var expanded by remember { mutableStateOf(false) }
     var renaming by rememberSaveable { mutableStateOf(false) }
     var editingNote by rememberSaveable { mutableStateOf(false) }
+    val selection = remember { SelectionModel() }
+    var addToAlbum by remember { mutableStateOf<List<MediaItem>?>(null) }
 
-    val buttons = if (entry == null) emptyList() else listOf(
-        AppBarButton("rename", JournalIcons.pencil) { renaming = true },
-        AppBarButton("note", JournalIcons.note) { editingNote = true },
-    )
-    MetroAppBarHost(buttons, expanded, { expanded = it }, Modifier.background(metro.background)) { padding ->
+    val buttons = when {
+        entry == null -> emptyList()
+        selection.isActive -> selectionActionButtons(selection) { addToAlbum = it }
+        else -> listOf(
+            AppBarButton("rename", JournalIcons.pencil) { renaming = true },
+            AppBarButton("note", JournalIcons.note) { editingNote = true },
+        )
+    }
+    val menu = if (selection.isActive) listOf(AppBarMenuItem("cancel selection") { selection.end() }) else emptyList()
+    MetroAppBarHost(buttons, expanded, { expanded = it }, Modifier.background(metro.background), menu) { padding ->
         Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).padding(top = 16.dp)) {
             MetroText("LUMINUX · JOURNAL", MetroType.overline, Modifier.padding(start = MetroMetrics.margin + 4.dp).metroFeather(row = 0))
             if (entry == null) {
@@ -126,9 +140,13 @@ fun JournalEntryScreen(entryId: String) {
                     MetroText(note, MetroType.body, Modifier.fillMaxWidth().padding(top = 6.dp).clickable(onClickLabel = "Edits the note") { editingNote = true }, maxLines = 4)
                 }
             }
-            PhotoGrid(entry.photoIds, "These photos are no longer in your library.", padding, selected = null, Modifier.weight(1f))
+            AssetGrid(
+                AssetSource.Identifiers(entry.photoIds), selection, Modifier.weight(1f),
+                emptyMessage = "These photos are no longer in your library.", contentPadding = padding,
+            )
         }
     }
+    AddToAlbumSheet(addToAlbum) { addToAlbum = null }
 
     if (entry != null && renaming) RenameDialog(journal.title(entry), { repository.rename(entry.id, it) }) { renaming = false }
     if (entry != null && editingNote) NoteEditor(entry, journal.title(entry), journal.note(entry).orEmpty(), { repository.setNote(entry.id, it) }) { editingNote = false }

@@ -93,6 +93,7 @@ import com.buddhanag.luminux.designsystem.Semilight
 import com.buddhanag.luminux.designsystem.metroFeather
 import com.buddhanag.luminux.designsystem.metroFont
 import com.buddhanag.luminux.designsystem.tiltPress
+import com.buddhanag.luminux.feature.viewer.zoomSource
 import com.buddhanag.luminux.feature.shell.Route
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -418,7 +419,6 @@ fun AssetGrid(
                                             }
                                         }
                                     },
-                                    // shortcut: 07's zoomSource(id) here, so the viewer zooms out of this tile.
                                     modifier = Modifier.metroFeather(row = row, column = column),
                                 )
                             }
@@ -549,7 +549,8 @@ private fun PhotoTile(
                 if (isSelecting) selected = isSelected
             },
     ) {
-        AssetThumbnail(item, pixelSide, Modifier.matchParentSize())
+        // The viewer zooms out of, and back into, this image.
+        AssetThumbnail(item, pixelSide, Modifier.matchParentSize().zoomSource(item.id))
         AnimatedVisibility(
             isSelecting, Modifier.align(Alignment.TopEnd).padding(6.dp),
             enter = fadeIn(MetroMotion.standard()), exit = fadeOut(MetroMotion.standard()),

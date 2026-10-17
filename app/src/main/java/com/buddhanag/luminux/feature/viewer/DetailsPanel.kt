@@ -128,7 +128,7 @@ internal fun DetailsPanel(
                         SelectionContainer { MetroText(row.value, MetroType.body) }
                     }
                 }
-                // shortcut: the 200 dp lite-mode mini map needs Maps Compose and its API key, which spec 08 adds; show it here after the merge.
+                // shortcut: the 200 dp lite-mode mini map (Maps Compose is in now) goes here once MAPS_API_KEY is set; without a key it draws a blank box.
             }
             Spacer(Modifier.size(40.dp))
             Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))

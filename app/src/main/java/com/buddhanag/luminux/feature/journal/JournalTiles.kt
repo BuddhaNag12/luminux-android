@@ -145,60 +145,6 @@ internal fun Thumb(item: MediaItem?, width: Dp, height: Dp = width) {
     }
 }
 
-/**
- * The photos of an entry or place, oldest first. Tapping opens the viewer; with [selected] it picks photos instead.
- * shortcut: swap for 06's AssetGrid at merge (no zoom, jump list, drag-select or zoom into the viewer).
- */
-@Composable
-internal fun PhotoGrid(ids: List<Long>, empty: String, contentPadding: PaddingValues, selected: SnapshotStateList<Long>?, modifier: Modifier = Modifier) {
-    val container = LocalContext.current.container
-    val metro = LocalMetro.current
-    val snapshot by container.photos.snapshot.collectAsStateWithLifecycle()
-    val settings by container.settings.settings.collectAsStateWithLifecycle(initialValue = null)
-    val source = remember(ids) { AssetSource.Identifiers(ids) }
-    val items = remember(snapshot, source) { snapshot.items(source) }
-    if (items.isEmpty()) {
-        MetroText(empty, MetroType.body, modifier.padding(horizontal = MetroMetrics.margin + 4.dp), color = metro.secondary)
-        return
-    }
-    BoxWithConstraints(modifier) {
-        val columns = settings?.gridColumns ?: return@BoxWithConstraints
-        val gap = 4.dp
-        val cell = (maxWidth - gap * (columns - 1)) / columns
-        LazyVerticalGrid(
-            GridCells.Fixed(columns), Modifier.fillMaxSize(), contentPadding = contentPadding,
-            horizontalArrangement = Arrangement.spacedBy(gap), verticalArrangement = Arrangement.spacedBy(gap),
-        ) {
-            itemsIndexed(items, key = { _, it -> it.id }) { index, item ->
-                val isSelected = selected?.contains(item.id) == true
-                Box(
-                    Modifier
-                        .clickable {
-                            when {
-                                selected == null -> container.navigator.openViewer(source, item.id, index)
-                                isSelected -> selected.remove(item.id)
-                                else -> selected.add(item.id)
-                            }
-                        }
-                        .semantics {
-                            contentDescription = if (item.type == MediaType.VIDEO) "Video" else "Photo"
-                            if (selected != null) this.selected = isSelected
-                        },
-                ) {
-                    Thumb(item, cell)
-                    if (isSelected) {
-                        Box(Modifier.matchParentSize().background(metro.accentColor.copy(alpha = 0.35f)))
-                        Image(
-                            MetroIcons.check, null,
-                            Modifier.align(Alignment.TopEnd).padding(4.dp).size(20.dp).background(metro.accentColor),
-                            colorFilter = ColorFilter.tint(Color.White),
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
 
 /** Line stand-ins for the SF Symbols these pages use, on the 24 grid of [MetroIcons]. */
 internal object JournalIcons {

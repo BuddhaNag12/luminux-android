@@ -22,7 +22,7 @@ class LiveTileExporter(
     private val imageLoader: ImageLoader,
     private val photos: PhotoRepository,
     private val store: LiveTileStore,
-    /** Hub photo set id -> (title, photo ids). shortcut: AppContainer passes `{ null }` until spec 05 brings HubTiles. */
+    /** Hub photo set id -> (title, photo ids), from HubTilesRepository. */
     private val photoSet: (String) -> Pair<String, List<Long>>?,
 ) {
     private companion object {

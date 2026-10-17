@@ -60,6 +60,10 @@ import com.buddhanag.luminux.feature.actions.NameDialog
 import com.buddhanag.luminux.feature.actions.selectionActionButtons
 import com.buddhanag.luminux.feature.grid.AssetGrid
 import com.buddhanag.luminux.feature.grid.SelectionModel
+import com.buddhanag.luminux.feature.hub.HubPinningHost
+import com.buddhanag.luminux.feature.hub.PinRequest
+import com.buddhanag.luminux.feature.hub.PinTarget
+import com.buddhanag.luminux.feature.places.PlacesPage
 import com.buddhanag.luminux.feature.shell.Route
 import kotlinx.coroutines.launch
 
@@ -86,6 +90,7 @@ fun CollectionScreen(initialPage: Int, showsJumpList: Boolean = false) {
     var isAppBarExpanded by remember { mutableStateOf(false) }
     var isNamingAlbum by remember { mutableStateOf(false) }
     var addToAlbum by remember { mutableStateOf<List<MediaItem>?>(null) }
+    var pin by remember { mutableStateOf<PinRequest?>(null) }
 
     val buttons = when {
         selection.isActive -> selectionActionButtons(selection) { addToAlbum = it }
@@ -95,8 +100,9 @@ fun CollectionScreen(initialPage: Int, showsJumpList: Boolean = false) {
     }
     val menu = if (selection.isActive) {
         listOf(
-            // shortcut: 05's PinRequest(Photos(ids)) { selection.end() } through its HubPinningHost goes here at merge.
-            AppBarMenuItem("pin to collection", isEnabled = selection.selected.isNotEmpty()) {},
+            AppBarMenuItem("pin to collection", isEnabled = selection.selected.isNotEmpty()) {
+                pin = PinRequest(PinTarget.Photos(selection.selected.toList())) { selection.end() }
+            },
             AppBarMenuItem("cancel selection") { selection.end() },
         )
     } else {
@@ -119,8 +125,7 @@ fun CollectionScreen(initialPage: Int, showsJumpList: Boolean = false) {
                         )
                     },
                     PivotPage("albums") { AlbumsGrid(snapshot, padding) { navigator.push(Route.Album(it)) } },
-                    // shortcut: 08's PlacesPage at merge.
-                    PivotPage("places") { Box(Modifier.fillMaxSize()) },
+                    PivotPage("places") { PlacesPage(contentPadding = padding) },
                     PivotPage("favorites") {
                         AssetGrid(
                             AssetSource.Favorites, selection,
@@ -155,6 +160,7 @@ fun CollectionScreen(initialPage: Int, showsJumpList: Boolean = false) {
         }
         BackHandler(enabled = isJumpListShown) { isJumpListShown = false }
         AddToAlbumSheet(addToAlbum) { addToAlbum = null }
+        HubPinningHost(pin) { pin = null }
         if (isNamingAlbum) {
             NameDialog("New album", "create", onConfirm = { scope.launch { container.photos.createAlbum(it) } }, onDismiss = {
                 isNamingAlbum = false

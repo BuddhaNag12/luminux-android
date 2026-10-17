@@ -74,6 +74,7 @@ import com.buddhanag.luminux.designsystem.MetroPalette
 import com.buddhanag.luminux.designsystem.MetroText
 import com.buddhanag.luminux.designsystem.MetroThemeMode
 import com.buddhanag.luminux.designsystem.MetroType
+import com.buddhanag.luminux.feature.actions.AddToAlbumSheet
 import com.buddhanag.luminux.feature.shell.Navigator
 import com.buddhanag.luminux.feature.shell.ViewerRequest
 import com.buddhanag.luminux.feature.viewer.editor.EditorScreen
@@ -127,6 +128,7 @@ internal fun ViewerScreen(request: ViewerRequest, navigator: Navigator, zoom: Vi
     /** Quick-rotate turns for one photo, saved as one copy when the page changes or the viewer closes. */
     var rotation by remember { mutableStateOf<Pair<Long, Int>?>(null) }
     var editing by remember { mutableStateOf<MediaItem?>(null) }
+    var addToAlbum by remember { mutableStateOf<List<MediaItem>?>(null) }
     var slideshowStart by remember { mutableStateOf<Int?>(null) }
     var proOffer by remember { mutableStateOf<ProOffer?>(null) }
     val playback = remember { VideoPlayback(context.applicationContext) }
@@ -384,8 +386,7 @@ internal fun ViewerScreen(request: ViewerRequest, navigator: Navigator, zoom: Vi
                             if (turns == 0) withPro("rotate this photo once", rotate) else rotate()
                         })
                     }
-                    // shortcut: spec 06's AddToAlbumSheet opens here once the grid lands; until then the item does nothing.
-                    add(AppBarMenuItem("add to album") {})
+                    add(AppBarMenuItem("add to album") { addToAlbum = listOf(item) })
                     add(AppBarMenuItem("slideshow") { withPro("play a slideshow once") { slideshowStart = pager.settledPage } })
                     add(AppBarMenuItem("details") { setDetails(true) })
                 }
@@ -399,6 +400,7 @@ internal fun ViewerScreen(request: ViewerRequest, navigator: Navigator, zoom: Vi
 
     CompositionLocalProvider(LocalMetro provides outerPalette) {
         editing?.let { item -> EditorScreen(item, onClose = { editing = null }) }
+        AddToAlbumSheet(addToAlbum) { addToAlbum = null }
     }
     slideshowStart?.let { start -> SlideshowScreen(assets, start, onClose = { slideshowStart = null }) }
     proOffer?.let { offer ->

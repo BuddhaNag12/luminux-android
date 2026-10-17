@@ -37,7 +37,11 @@ import com.buddhanag.luminux.designsystem.MetroText
 import com.buddhanag.luminux.designsystem.MetroType
 import com.buddhanag.luminux.designsystem.metroFeather
 import com.buddhanag.luminux.feature.actions.ActionIcons
+import com.buddhanag.luminux.data.hub.HubTileKind
 import com.buddhanag.luminux.feature.actions.AddToAlbumSheet
+import com.buddhanag.luminux.feature.hub.HubPinningHost
+import com.buddhanag.luminux.feature.hub.PinRequest
+import com.buddhanag.luminux.feature.hub.PinTarget
 import com.buddhanag.luminux.feature.actions.ConfirmDialog
 import com.buddhanag.luminux.feature.actions.NameDialog
 import com.buddhanag.luminux.feature.actions.selectionActionButtons
@@ -67,6 +71,8 @@ fun AlbumScreen(id: String) {
     var isRenaming by remember { mutableStateOf(false) }
     var confirmsDelete by remember { mutableStateOf(false) }
     var addToAlbum by remember { mutableStateOf<List<MediaItem>?>(null) }
+    var pin by remember { mutableStateOf<PinRequest?>(null) }
+    val hubLayout by container.hubTiles.layout.collectAsStateWithLifecycle()
     val widgetItem = widgetMenuItem(TileCollection.album(id, title))
 
     val buttons = if (selection.isActive) {
@@ -83,14 +89,18 @@ fun AlbumScreen(id: String) {
                     selection.end()
                 }
             },
-            // shortcut: 05's PinRequest(Photos(ids)) { selection.end() } goes here at merge.
-            AppBarMenuItem("pin to collection", isEnabled = selection.selected.isNotEmpty()) {},
+            AppBarMenuItem("pin to collection", isEnabled = selection.selected.isNotEmpty()) {
+                pin = PinRequest(PinTarget.Photos(selection.selected.toList())) { selection.end() }
+            },
             AppBarMenuItem("cancel selection") { selection.end() },
         )
     } else {
         listOfNotNull(
-            // shortcut: 05 swaps in "unpin from collection" when hubTiles.isPinned(Album(id)), else PinRequest(Album(id)).
-            AppBarMenuItem("pin to collection") {},
+            if (hubLayout.isPinned(HubTileKind.Album(id))) {
+                AppBarMenuItem("unpin from collection") { container.hubTiles.unpin(HubTileKind.Album(id)) }
+            } else {
+                AppBarMenuItem("pin to collection") { pin = PinRequest(PinTarget.Album(id)) }
+            },
             widgetItem,
             if (isUserAlbum) AppBarMenuItem("rename") { isRenaming = true } else null,
             if (isUserAlbum) AppBarMenuItem("delete album") { confirmsDelete = true } else null,
@@ -120,6 +130,7 @@ fun AlbumScreen(id: String) {
             }
         }
         AddToAlbumSheet(addToAlbum) { addToAlbum = null }
+        HubPinningHost(pin) { pin = null }
         if (isRenaming) {
             NameDialog("Rename album", "rename", initial = title, onConfirm = { scope.launch { photos.renameAlbum(id, it) } }, onDismiss = {
                 isRenaming = false

@@ -1,5 +1,6 @@
 package com.buddhanag.luminux.feature.hub
 
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions
@@ -58,6 +59,9 @@ import com.buddhanag.luminux.data.PhotoRepository
 import com.buddhanag.luminux.data.Thumbnails
 import com.buddhanag.luminux.data.hub.HubTileKind
 import com.buddhanag.luminux.data.hub.PhotoSet
+import com.buddhanag.luminux.feature.collection.CollectionPages
+import com.buddhanag.luminux.feature.journal.JournalEntryTile
+import com.buddhanag.luminux.feature.journal.JournalPlaceholder
 import com.buddhanag.luminux.designsystem.AppBarButton
 import com.buddhanag.luminux.designsystem.AppBarMenuItem
 import com.buddhanag.luminux.designsystem.LocalLiveTileScheduler
@@ -95,6 +99,7 @@ fun HubScreen() {
     val settings = container.settings.settings.collectAsStateWithLifecycle(initialValue = null).value ?: return
     val snapshot by container.photos.snapshot.collectAsStateWithLifecycle()
     val access by container.photos.access.collectAsStateWithLifecycle()
+    val journal by container.journal.state.collectAsStateWithLifecycle()
     val layout by repo.layout.collectAsStateWithLifecycle()
     val isProUnlocked by container.isProUnlocked.collectAsStateWithLifecycle()
     val unlocksPro = isProUnlocked || container.isTestBuild
@@ -116,7 +121,8 @@ fun HubScreen() {
     LaunchedEffect(settings.animatesLiveTiles) { scheduler.isAnimated = settings.animatesLiveTiles }
     val tilt = rememberPhoneTilt(settings.movesWithPhone && !reduceMotion && tracksHub)
 
-    val faces = TileFaceData(container.photos, layout, settings.animatesTilePatterns)
+    val placeCovers = journal.places.take(LIVE_PLACES).mapNotNull { place -> place.photoIds.firstOrNull()?.let(snapshot.byId::get) }
+    val faces = TileFaceData(container.photos, layout, settings.animatesTilePatterns, placeCovers)
     val open = { kind: HubTileKind -> navigator.push(routeFor(kind)) }
     val openViewer = { source: AssetSource, item: MediaItem, index: Int -> navigator.openViewer(source, item.id, index) }
 
@@ -163,14 +169,15 @@ fun HubScreen() {
                     },
                     {
                         PanoramaSection("journal", bottomInset = bottom) {
-                            // shortcut: spec 08 brings JournalEntryTile (latest 3, rows 2-4), "see all" (row 5) and the
-                            // "Putting your journal together…" state; until the merge this is the built-but-empty text.
-                            item {
-                                MetroText(
-                                    "Outings, days and trips show up here on their own as you take photos.", MetroType.body,
-                                    Modifier.padding(end = MetroMetrics.margin + 12.dp).metroFeather(row = 2),
-                                    color = LocalMetro.current.secondary,
-                                )
+                            // The latest few entries; the journal page has the rest.
+                            val endPadding = Modifier.padding(end = MetroMetrics.margin + 12.dp)
+                            if (journal.entries.isEmpty()) {
+                                item { JournalPlaceholder(journal.isBuilt, endPadding.metroFeather(row = 2)) }
+                            } else {
+                                itemsIndexed(journal.entries.take(3), key = { _, e -> e.id }) { index, entry ->
+                                    JournalEntryTile(entry, journal, endPadding.metroFeather(row = 2 + index))
+                                }
+                                item { MetroButton("see all", { navigator.push(Route.Journal) }, Modifier.metroFeather(row = 5)) }
                             }
                         }
                     },
@@ -211,12 +218,11 @@ fun HubScreen() {
 }
 
 internal fun routeFor(kind: HubTileKind): Route = when (kind) {
-    HubTileKind.CameraRoll -> Route.Collection(page = 0)
-    HubTileKind.Albums -> Route.Collection(page = 1)
-    HubTileKind.Date -> Route.Collection(page = 0, showsJumpList = true)
-    // shortcut: CollectionView.placesPage / favoritesPage are 2 and 3; use 06's constants once it lands.
-    HubTileKind.Places -> Route.Collection(page = 2)
-    HubTileKind.Favorites -> Route.Collection(page = 3)
+    HubTileKind.CameraRoll -> Route.Collection(page = CollectionPages.ALL)
+    HubTileKind.Albums -> Route.Collection(page = CollectionPages.ALBUMS)
+    HubTileKind.Date -> Route.Collection(page = CollectionPages.ALL, showsJumpList = true)
+    HubTileKind.Places -> Route.Collection(page = CollectionPages.PLACES)
+    HubTileKind.Favorites -> Route.Collection(page = CollectionPages.FAVORITES)
     is HubTileKind.Album -> Route.Album(kind.id)
     is HubTileKind.PhotoSet -> Route.PhotoSet(kind.id)
 }
@@ -329,3 +335,6 @@ private fun HubBackground(source: HubBackgroundSource, isLoaded: Boolean, photos
         onSuccess = { shown = true },
     )
 }
+
+/** The places tile cycles through this many recent places (HubTileGrid.swift). */
+private const val LIVE_PLACES = 8

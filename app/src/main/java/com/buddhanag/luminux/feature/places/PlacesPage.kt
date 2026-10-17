@@ -58,6 +58,7 @@ import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.request.allowHardware
 import coil3.toBitmap
+import com.buddhanag.luminux.data.AssetSource
 import com.buddhanag.luminux.container
 import com.buddhanag.luminux.data.MediaItem
 import com.buddhanag.luminux.data.MediaThumb
@@ -65,6 +66,10 @@ import com.buddhanag.luminux.data.Thumbnails
 import com.buddhanag.luminux.data.journal.JournalTitles
 import com.buddhanag.luminux.data.journal.Place
 import com.buddhanag.luminux.data.journal.PlaceGrouping
+import com.buddhanag.luminux.feature.actions.AddToAlbumSheet
+import com.buddhanag.luminux.feature.actions.selectionActionButtons
+import com.buddhanag.luminux.feature.grid.AssetGrid
+import com.buddhanag.luminux.feature.grid.SelectionModel
 import com.buddhanag.luminux.designsystem.AppBarButton
 import com.buddhanag.luminux.designsystem.AppBarMenuItem
 import com.buddhanag.luminux.designsystem.LocalMetro
@@ -79,7 +84,6 @@ import com.buddhanag.luminux.designsystem.metroFeather
 import com.buddhanag.luminux.designsystem.metroFont
 import com.buddhanag.luminux.designsystem.tiltPress
 import com.buddhanag.luminux.feature.journal.JournalIcons
-import com.buddhanag.luminux.feature.journal.PhotoGrid
 import com.buddhanag.luminux.feature.journal.Thumb
 import com.buddhanag.luminux.feature.shell.Route
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -294,35 +298,19 @@ fun PlaceScreen(placeId: String) {
     val snapshot by container.photos.snapshot.collectAsStateWithLifecycle()
     val place = journal.place(placeId)
     var expanded by remember { mutableStateOf(false) }
-    var selecting by remember { mutableStateOf(false) }
-    val selected = remember { mutableStateListOf<Long>() }
-    fun endSelection() {
-        selecting = false
-        selected.clear()
-    }
-    val system = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
-        if (it.resultCode == Activity.RESULT_OK) endSelection()
-    }
-
-    val chosen = selected.mapNotNull { snapshot.byId[it] }
-    val buttons = if (!selecting) {
-        listOf(AppBarButton("select", JournalIcons.checklist) { selecting = true })
+    val selection = remember { SelectionModel() }
+    var addToAlbum by remember { mutableStateOf<List<MediaItem>?>(null) }
+    val buttons = if (selection.isActive) {
+        selectionActionButtons(selection) { addToAlbum = it }
     } else {
-        // shortcut: no "add to album" until 06's SelectionActions and album sheet replace these at merge.
-        listOf(
-            AppBarButton("share", JournalIcons.share, isEnabled = chosen.isNotEmpty()) { context.startActivity(container.photos.shareIntent(chosen)) },
-            AppBarButton("favorite", JournalIcons.heart, isEnabled = chosen.isNotEmpty()) {
-                system.launch(container.photos.favoriteRequest(chosen, favorite = !chosen.all { it.isFavorite }))
-            },
-            AppBarButton("delete", JournalIcons.trash, isEnabled = chosen.isNotEmpty()) { system.launch(container.photos.trashRequest(chosen)) },
-        )
+        listOf(AppBarButton("select", JournalIcons.checklist) { selection.begin() })
     }
-    val menu = if (selecting) listOf(AppBarMenuItem("cancel selection") { endSelection() }) else emptyList()
+    val menu = if (selection.isActive) listOf(AppBarMenuItem("cancel selection") { selection.end() }) else emptyList()
 
     MetroAppBarHost(buttons, expanded, { expanded = it }, Modifier.background(metro.background), menu) { padding ->
         Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).padding(top = 16.dp)) {
             MetroText(
-                if (selecting) "LUMINUX · ${selected.size} SELECTED" else "LUMINUX · PLACES", MetroType.overline,
+                if (selection.isActive) "LUMINUX · ${selection.selected.size} SELECTED" else "LUMINUX · PLACES", MetroType.overline,
                 Modifier.padding(start = MetroMetrics.margin + 4.dp).metroFeather(row = 0),
             )
             MetroText(
@@ -330,7 +318,11 @@ fun PlaceScreen(placeId: String) {
                 Modifier.padding(start = MetroMetrics.margin + 1.dp, bottom = 8.dp).fillMaxWidth().clipToBounds().metroFeather(row = 0).semantics { heading() },
                 maxLines = 1, softWrap = false,
             )
-            PhotoGrid(place?.photoIds.orEmpty(), "These photos are no longer in your library.", padding, selected.takeIf { selecting }, Modifier.weight(1f))
+            AssetGrid(
+                AssetSource.Identifiers(place?.photoIds.orEmpty()), selection, Modifier.weight(1f),
+                emptyMessage = "These photos are no longer in your library.", contentPadding = padding,
+            )
         }
     }
+    AddToAlbumSheet(addToAlbum) { addToAlbum = null }
 }

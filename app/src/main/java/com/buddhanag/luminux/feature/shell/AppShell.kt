@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.buddhanag.luminux.container
+import com.buddhanag.luminux.data.AlbumIds
 import com.buddhanag.luminux.data.SettingsKeys
 import com.buddhanag.luminux.designsystem.Accent
 import com.buddhanag.luminux.designsystem.LocalMetro
@@ -25,10 +26,12 @@ import com.buddhanag.luminux.designsystem.MetroMetrics
 import com.buddhanag.luminux.designsystem.MetroText
 import com.buddhanag.luminux.designsystem.MetroType
 import com.buddhanag.luminux.designsystem.metroFeather
+import com.buddhanag.luminux.feature.hub.HubScreen
+import com.buddhanag.luminux.feature.hub.PhotoSetScreen
 import com.buddhanag.luminux.feature.settings.AboutScreen
-import com.buddhanag.luminux.feature.settings.LinkRow
 import com.buddhanag.luminux.feature.settings.PageHeader
 import com.buddhanag.luminux.feature.settings.SettingsScreen
+import kotlinx.coroutines.flow.filter
 
 /** AppShell (LuminuxApp.swift): the hub with the page stack over it, deep links and the app-wide side effects. */
 @Composable
@@ -44,14 +47,20 @@ fun AppShell(pendingDeepLink: MutableState<Uri?>) {
         val hex = settings?.accentHex ?: return@LaunchedEffect
         if (!unlocksPro && !Accent(hex).isPreset) container.settings.set(SettingsKeys.accent, Accent.Cobalt.hex)
     }
-    // shortcut: proStore.refresh() (09), the journal rebuild (08) and the hub pin prune (05) join with those specs.
+    // shortcut: proStore.refresh() (09) and the journal rebuild (08) join with those specs.
+    // Pinned albums that are gone take their tiles with them; smart albums always exist, even when empty and unlisted.
+    LaunchedEffect(Unit) {
+        container.photos.snapshot.filter { it.isLoaded }.collect { snapshot ->
+            container.hubTiles.prune(snapshot.albums.map { it.id }.toSet() + AlbumIds.SCREENSHOTS + AlbumIds.PANORAMAS)
+        }
+    }
     LaunchedEffect(pendingDeepLink.value) {
         val uri = pendingDeepLink.value ?: return@LaunchedEffect
         navigator.handleDeepLink(uri, isProUnlocked)
         pendingDeepLink.value = null
     }
 
-    MetroStack(navigator, root = { HubPlaceholder(navigator) }) { route ->
+    MetroStack(navigator, root = { HubScreen() }) { route ->
         when (route) {
             Route.Settings -> SettingsScreen()
             Route.About -> AboutScreen()
@@ -60,7 +69,7 @@ fun AppShell(pendingDeepLink: MutableState<Uri?>) {
             Route.Pro -> Placeholder("pro", "09")
             Route.Journal -> Placeholder("journal", "08")
             is Route.JournalEntry -> Placeholder("journal entry", "08")
-            is Route.PhotoSet -> Placeholder("photo set", "05")
+            is Route.PhotoSet -> PhotoSetScreen(route.id)
             is Route.Place -> Placeholder("place", "08")
         }
     }
@@ -68,16 +77,6 @@ fun AppShell(pendingDeepLink: MutableState<Uri?>) {
 }
 
 // shortcut: stand-ins so every route can be opened and navigation checked; each is replaced by its spec's screen.
-@Composable
-private fun HubPlaceholder(navigator: Navigator) {
-    PlaceholderPage("photos", "The hub comes with spec 05.") {
-        LinkRow("collection", "All photos, albums, favorites, videos", Modifier.metroFeather(row = 2)) { navigator.push(Route.Collection(page = 0)) }
-        LinkRow("journal", "Your days and trips", Modifier.metroFeather(row = 3)) { navigator.push(Route.Journal) }
-        LinkRow("pro", "What Pro adds", Modifier.metroFeather(row = 4)) { navigator.push(Route.Pro) }
-        LinkRow("settings", "Motion, look and about", Modifier.metroFeather(row = 5)) { navigator.push(Route.Settings) }
-    }
-}
-
 @Composable
 private fun Placeholder(title: String, spec: String) = PlaceholderPage(title, "This page comes with spec $spec.") {}
 

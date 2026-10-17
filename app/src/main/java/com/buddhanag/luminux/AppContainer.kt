@@ -12,6 +12,7 @@ import com.buddhanag.luminux.data.MediaStorePhotoRepository
 import com.buddhanag.luminux.data.PhotoRepository
 import com.buddhanag.luminux.data.SettingsRepository
 import com.buddhanag.luminux.data.ThumbnailPrefetcher
+import com.buddhanag.luminux.data.hub.HubTilesRepository
 import com.buddhanag.luminux.designsystem.LiveTileScheduler
 import com.buddhanag.luminux.feature.shell.Navigator
 import kotlinx.coroutines.CoroutineScope
@@ -43,8 +44,12 @@ class AppContainer(val context: Context) {
 
     val liveTileStore = LiveTileStore(context.filesDir, PreferenceDataStoreFactory.create { context.preferencesDataStoreFile("live_tile") })
 
+    val hubTiles = HubTilesRepository(database.hubDao(), appScope)
+
     val liveTileExporter by lazy {
-        LiveTileExporter(context, SingletonImageLoader.get(context), photos, liveTileStore, photoSet = { null })
+        LiveTileExporter(context, SingletonImageLoader.get(context), photos, liveTileStore) { id ->
+            hubTiles.photoSet(id)?.let { it.title to it.photoIds }
+        }
     }
 
     val navigator = Navigator()

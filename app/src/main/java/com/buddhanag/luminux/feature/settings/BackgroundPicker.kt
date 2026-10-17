@@ -79,9 +79,10 @@ fun BackgroundPicker(
     val metro = LocalMetro.current
     val container = LocalContext.current.container
     val snapshot by container.photos.snapshot.collectAsStateWithLifecycle()
+    val sets = container.hubTiles.layout.collectAsStateWithLifecycle().value.sets
     val current = effectiveBackground(settings, unlocksPro)
     val isLocked = !unlocksPro
-    val name = { source: HubBackgroundSource -> backgroundName(source, album = { container.photos.album(it)?.title }, photoSet = { null }) }
+    val name = { source: HubBackgroundSource -> backgroundName(source, album = { container.photos.album(it)?.title }, photoSet = { container.hubTiles.photoSet(it)?.title }) }
     val picker = rememberLauncherForActivityResult(PickMultipleVisualMedia(MAX_CHOSEN_PHOTOS)) { uris ->
         val ids = pickedPhotoIds(uris.map(Uri::getLastPathSegment)) { it in snapshot.byId }
         if (ids.isNotEmpty()) onPick(HubBackgroundSource.Photos(ids))
@@ -120,7 +121,10 @@ fun BackgroundPicker(
             Header("albums")
             snapshot.albums.forEach { option(HubBackgroundSource.Album(it.id)) }
         }
-        // shortcut: the "photo sets" group joins with spec 05's HubTiles (sets sorted by title).
+        if (sets.isNotEmpty()) {
+            Header("photo sets")
+            sets.values.sortedBy { it.title }.forEach { option(HubBackgroundSource.PhotoSet(it.id)) }
+        }
     }
 }
 

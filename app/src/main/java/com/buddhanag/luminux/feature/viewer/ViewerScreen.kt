@@ -105,10 +105,12 @@ internal fun ViewerScreen(request: ViewerRequest, navigator: Navigator, zoom: Vi
     val scope = rememberCoroutineScope()
     val snapshot by photos.snapshot.collectAsStateWithLifecycle()
     val assets = remember(snapshot, request.source) { photos.items(request.source) }
+    // The pager's count and key lambdas outlive a composition; both read the newest list, or a new copy indexes past the end.
+    val latestAssets by rememberUpdatedState(assets)
     val isProUnlocked by container.isProUnlocked.collectAsStateWithLifecycle()
     val pager = rememberPagerState(
         initialPage = remember { assets.indexOfFirst { it.id == request.startId }.takeIf { it >= 0 } ?: request.startIndex },
-    ) { assets.size }
+    ) { latestAssets.size }
     val current = assets.getOrNull(pager.settledPage)
     // Another request (or none) means this viewer is fading out.
     val isClosing = navigator.viewer !== request
@@ -137,7 +139,8 @@ internal fun ViewerScreen(request: ViewerRequest, navigator: Navigator, zoom: Vi
     /** Stays true until the close animation finishes, so the panel can slide away. */
     var panelMounted by remember { mutableStateOf(false) }
     val chromeVisible = showsChrome && dismiss == 0f && !panelMounted
-    val allowsLift = isProUnlocked || liftUnlocked
+    // A function, not a value: Telephoto keeps the first long-press lambda, so it must read the state when called.
+    fun allowsLift() = isProUnlocked || liftUnlocked
 
     fun close() {
         if (!isClosing) navigator.viewer = null
@@ -178,7 +181,7 @@ internal fun ViewerScreen(request: ViewerRequest, navigator: Navigator, zoom: Vi
         // MediaStore has caught up with the favourite taps.
         pendingFavorites = pendingFavorites.filter { (id, value) -> snapshot.byId[id]?.let { it.isFavorite != value } ?: false }
     }
-    LaunchedEffect(allowsLift) { if (allowsLift) runCatching { SubjectLift.prepare(context) } }
+    LaunchedEffect(allowsLift()) { if (allowsLift()) runCatching { SubjectLift.prepare(context) } }
     // Like the original player, the controls get out of the way a moment after playback starts.
     LaunchedEffect(playback.isPlaying && showsChrome && !playback.isScrubbing) {
         if (!playback.isPlaying || !showsChrome || playback.isScrubbing) return@LaunchedEffect
@@ -246,12 +249,12 @@ internal fun ViewerScreen(request: ViewerRequest, navigator: Navigator, zoom: Vi
             }
 
             fun onLongPress(item: MediaItem) {
-                if (!allowsLift) return withPro("lift a subject once") { liftUnlocked = true }
-                scope.launch { liftSubject(item)?.let { if (current?.id == item.id) lifted = it } }
+                if (!allowsLift()) return withPro("lift a subject once") { liftUnlocked = true }
+                scope.launch { liftSubject(item)?.let { if (latestAssets.getOrNull(pager.settledPage)?.id == item.id) lifted = it } }
             }
 
             fun copySubject(item: MediaItem) {
-                if (!allowsLift) return withPro("lift a subject once") { liftUnlocked = true }
+                if (!allowsLift()) return withPro("lift a subject once") { liftUnlocked = true }
                 scope.launch {
                     val subject = liftSubject(item)
                     subject?.let { SubjectLift.copy(context, it) }
@@ -286,9 +289,9 @@ internal fun ViewerScreen(request: ViewerRequest, navigator: Navigator, zoom: Vi
                     pager,
                     Modifier.fillMaxSize(),
                     userScrollEnabled = lifted == null,
-                    key = { assets[it].id },
+                    key = { latestAssets.getOrNull(it)?.id ?: it },
                 ) { page ->
-                    val item = assets[page]
+                    val item = latestAssets.getOrNull(page) ?: return@HorizontalPager
                     val isCurrent = page == pager.settledPage
                     val zoomTarget = if (isCurrent) {
                         with(zoom.scope) { Modifier.sharedElement(rememberSharedContentState(zoomKey(item.id)), visibility) }

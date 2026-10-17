@@ -53,7 +53,14 @@ internal object SubjectLift {
 
     /** The subjects cut out on a transparent background at the photo's size, or null when there are none. */
     suspend fun lift(photo: Bitmap): Bitmap? =
-        runCatching { segmenter.process(InputImage.fromBitmap(photo, 0)).await().foregroundBitmap }.getOrNull()
+        runCatching { segmenter.process(InputImage.fromBitmap(photo, 0)).await().foregroundBitmap?.takeIf(::hasSubject) }.getOrNull()
+
+    /** The cut-out is all transparent when nothing stands out (`subjects` stays empty without multi-subject output). */
+    private fun hasSubject(cutout: Bitmap): Boolean {
+        val pixels = IntArray(cutout.width * cutout.height)
+        cutout.getPixels(pixels, 0, cutout.width, 0, 0, cutout.width, cutout.height)
+        return pixels.any { it ushr 24 > 128 }
+    }
 
     fun copy(context: Context, subject: Bitmap) {
         val clipboard = context.getSystemService(ClipboardManager::class.java)

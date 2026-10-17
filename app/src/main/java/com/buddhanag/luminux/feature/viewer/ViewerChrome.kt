@@ -103,10 +103,12 @@ internal fun TextButton(title: String, onClick: () -> Unit, modifier: Modifier =
     )
 }
 
-/** Swallows touches so nothing under a full-screen page reacts. */
+/**
+ * Takes the touches so nothing under a full-screen page reacts: the topmost sibling with pointer input wins the hit
+ * test. Nothing is consumed, since that would cancel the page's own drags.
+ */
 internal suspend fun PointerInputScope.swallowTouches() = awaitEachGesture {
     do {
         val event = awaitPointerEvent()
-        event.changes.forEach { it.consume() }
     } while (event.changes.any { it.pressed })
 }

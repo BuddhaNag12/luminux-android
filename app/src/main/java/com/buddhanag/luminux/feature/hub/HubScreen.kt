@@ -1,6 +1,7 @@
 package com.buddhanag.luminux.feature.hub
 
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions
@@ -109,6 +110,8 @@ fun HubScreen() {
     val unlocksPro = isProUnlocked || container.proStore.isTestBuild
     val reduceMotion = LocalReduceMotion.current
     val edit = remember { HubEditState() }
+    // Back finishes customizing, as the "done" button does, rather than leaving the app (the hub is the stack's root).
+    BackHandler(enabled = edit.isEditing && navigator.path.isEmpty()) { edit.end() }
     val news by container.news.state.collectAsStateWithLifecycle()
     val showsNews = !isProUnlocked && news.isEnabled
     // The news panel sits left of the collection, and the hub opens on the collection.

@@ -1,5 +1,7 @@
 package com.buddhanag.luminux.designsystem
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,6 +37,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -76,8 +79,9 @@ data class PanoramaMath(
     fun titleX(scrollX: Float, titleWidth: Float, margin: Float) =
         leadingProgress(scrollX) * screenWidth - titleShift(scrollX, titleWidth, margin)
 
-    /** Wide enough to cover the screen through about four panels of parallax, plus the panels left of the start. */
-    val backgroundWidth get() = screenWidth + panelWidth * 4 * MetroMotion.BACKGROUND_PARALLAX + leadingWidth * MetroMotion.BACKGROUND_PARALLAX
+    /** Wide enough to cover the screen through all the panels' parallax (at least four), plus the panels left of the start. */
+    val backgroundWidth get() =
+        screenWidth + max(maxOffset, panelWidth * 4) * MetroMotion.BACKGROUND_PARALLAX + leadingWidth * MetroMotion.BACKGROUND_PARALLAX
     fun backgroundX(scrollX: Float) =
         -(leadingWidth * MetroMotion.BACKGROUND_PARALLAX) - parallax(scrollX) * MetroMotion.BACKGROUND_PARALLAX
 
@@ -107,6 +111,11 @@ fun Panorama(
     val density = LocalDensity.current
     val pager = rememberPagerState(initialPage = startPanel) { panels.size }
     var titleWidth by remember { mutableIntStateOf(0) }
+    // Opening the app, the photo drifts in from the right more slowly than the title, for depth; grown a little so its
+    // left edge stays covered.
+    val arriving = LocalFeatherStyle.current == FeatherStyle.Zoom && LocalFeatherFromBack.current &&
+        LocalFeather.current.state == FeatherState.Below && !reduceMotion
+    val arrival by animateFloatAsState(if (arriving) 1f else 0f, tween(800, easing = Feather.Decelerate), label = "arrival")
 
     val onChange by rememberUpdatedState(onPanelChange)
     LaunchedEffect(pager) { snapshotFlow { pager.settledPage }.drop(1).collect { onChange(it) } }
@@ -132,6 +141,11 @@ fun Panorama(
                         .fillMaxHeight()
                         .wrapContentWidth(Alignment.Start, unbounded = true)
                         .width(with(density) { math.backgroundWidth.toDp() })
+                        .graphicsLayer {
+                            scaleX = 1f + 0.2f * arrival
+                            scaleY = scaleX
+                            translationX = screenWidth * 0.1f * arrival
+                        }
                         .offset { IntOffset(math.backgroundX(scrollX()).roundToInt(), 0) }
                         .clipToBounds()
                         .clearAndSetSemantics {},

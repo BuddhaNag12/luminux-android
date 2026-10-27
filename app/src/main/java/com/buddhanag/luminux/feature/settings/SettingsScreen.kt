@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.buddhanag.luminux.container
 import com.buddhanag.luminux.data.AppSettings
+import com.buddhanag.luminux.data.PageTransition
 import com.buddhanag.luminux.data.SettingsKeys
 import com.buddhanag.luminux.data.TiltStrength
 import com.buddhanag.luminux.designsystem.Accent
@@ -173,6 +174,12 @@ private fun ColumnScope.GeneralPage(s: AppSettings, set: (Preferences.Key<Boolea
     ToggleRow(
         "tile patterns", "The albums and date tiles move slowly.",
         s.animatesTilePatterns, { set(SettingsKeys.animatesTilePatterns, it) }, Modifier.metroFeather(row = 4).padding(top = 32.dp),
+    )
+    // iOS uses row 3, which is "live tiles" here; this sits with the other motion rows on the next free line.
+    Segments(
+        "page animation", PageTransition.entries, s.pageTransition, { it.raw },
+        { scope.launch { container.settings.setPageTransition(it) } },
+        Modifier.metroFeather(row = 5).padding(top = 32.dp),
     )
     // No "standby" row (Android has no StandBy) and no "live photos" row (v1 drops Live Photos): both would do nothing.
     ToggleRow(

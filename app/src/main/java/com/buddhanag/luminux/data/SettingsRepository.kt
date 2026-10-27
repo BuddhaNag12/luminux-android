@@ -28,6 +28,7 @@ object SettingsKeys {
     val namesJournalPlaces = booleanPreferencesKey("namesJournalPlaces")
     val tiltStrength = stringPreferencesKey("tiltStrength")
     val hasSeenOnboarding = booleanPreferencesKey("hasSeenOnboarding")
+    val pageTransition = stringPreferencesKey("pageTransition")
     /** Android only: tells "never asked" apart from "denied for good" (see [mediaAccess]). */
     val askedMediaAccess = booleanPreferencesKey("askedMediaAccess")
 }
@@ -38,6 +39,9 @@ enum class MetroThemeMode { Dark, Light }
 
 /** How far the hub moves with the phone. */
 enum class TiltStrength(val raw: String, val scale: Float) { LOW("low", .45f), MEDIUM("medium", .7f), HIGH("high", 1f) }
+
+/** How pages open and close: every line turning on the screen's edge, or the page underneath scattering away. */
+enum class PageTransition(val raw: String) { TURNSTILE("turnstile"), ZOOM("zoom") }
 
 /** The photos the hub's background is picked from. */
 @Serializable
@@ -66,6 +70,7 @@ data class AppSettings(
     val namesJournalPlaces: Boolean = true,
     val tiltStrength: TiltStrength = TiltStrength.MEDIUM,
     val hasSeenOnboarding: Boolean = false,
+    val pageTransition: PageTransition = PageTransition.ZOOM,
 )
 
 class SettingsRepository(private val store: DataStore<Preferences>) {
@@ -89,6 +94,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
             namesJournalPlaces = p[SettingsKeys.namesJournalPlaces] ?: d.namesJournalPlaces,
             tiltStrength = TiltStrength.entries.firstOrNull { it.raw == p[SettingsKeys.tiltStrength] } ?: d.tiltStrength,
             hasSeenOnboarding = p[SettingsKeys.hasSeenOnboarding] ?: d.hasSeenOnboarding,
+            pageTransition = PageTransition.entries.firstOrNull { it.raw == p[SettingsKeys.pageTransition] } ?: d.pageTransition,
         )
     }
 
@@ -100,6 +106,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
 
     suspend fun setTheme(theme: MetroThemeMode) = set(SettingsKeys.theme, theme.name.lowercase())
     suspend fun setTiltStrength(strength: TiltStrength) = set(SettingsKeys.tiltStrength, strength.raw)
+    suspend fun setPageTransition(transition: PageTransition) = set(SettingsKeys.pageTransition, transition.raw)
     suspend fun setHubBackground(source: HubBackgroundSource) =
         set(SettingsKeys.hubBackground, json.encodeToString(HubBackgroundSource.serializer(), source))
 }

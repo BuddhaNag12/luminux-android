@@ -34,4 +34,37 @@ class FeatherTimingTest {
     @Test fun exitTimeIs345Milliseconds() {
         assertEquals(0.345, Feather.exitTime, 1e-9)
     }
+
+    @Test fun enterTimeIs970Milliseconds() {
+        assertEquals(0.97, Feather.enterTime, 1e-9)
+    }
+
+    @Test fun aZoomingPageDoesNotWaitForTheOutgoingOne() {
+        assertEquals(132, Feather.timing(Shown, Below, row = 3, column = 1, waitsForOutgoing = false).rotation.delay)
+        assertEquals(Feather.timing(Shown, Above, 3, 1), Feather.timing(Shown, Above, 3, 1, waitsForOutgoing = false))
+    }
+
+    @Test fun scatterGoesOneItemAtATimeAndFadesAtTheEnd() {
+        val out = Feather.scatterTiming(out = true, row = 2, column = 1) // step 5
+        assertEquals(150, out.rotation.delay)
+        assertEquals(220, out.rotation.durationMillis)
+        assertEquals(290, out.alpha.delay) // 0.15 + 0.22 − 0.08
+        assertEquals(80, out.alpha.durationMillis)
+        val back = Feather.scatterTiming(out = false, row = 2, column = 1)
+        assertEquals(270, back.rotation.delay) // 0.12 + 0.15
+        assertEquals(350, back.rotation.durationMillis)
+        assertEquals(270, back.alpha.delay)
+        assertEquals(60, back.alpha.durationMillis)
+        assertEquals(0, Feather.scatterTiming(out = true, row = -1, column = 0).rotation.delay)
+    }
+
+    @Test fun theTitleComesForwardSlowerThanTheRest() {
+        assertEquals(700, Feather.forwardTiming(0, 0).rotation.durationMillis)
+        assertEquals(300, Feather.forwardTiming(0, 0).alpha.durationMillis)
+        val tile = Feather.forwardTiming(3, 1)
+        assertEquals(550, tile.rotation.durationMillis)
+        assertEquals(200, tile.alpha.durationMillis)
+        assertEquals(500, tile.rotation.delay)
+        assertEquals(500, tile.alpha.delay)
+    }
 }

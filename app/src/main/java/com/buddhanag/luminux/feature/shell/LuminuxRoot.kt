@@ -72,7 +72,7 @@ fun LuminuxRoot(pendingDeepLink: MutableState<Uri?>, forcesOnboarding: Boolean) 
                                 forced = false
                                 scope.launch { container.settings.set(SettingsKeys.hasSeenOnboarding, true) }
                             }
-                            Gate.Shell -> AppShell(pendingDeepLink)
+                            Gate.Shell -> AppShell(pendingDeepLink, s.pageTransition)
                             Gate.Permission -> PermissionScreen()
                         }
                     }

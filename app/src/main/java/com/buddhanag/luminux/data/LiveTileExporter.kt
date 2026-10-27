@@ -8,6 +8,7 @@ import coil3.request.SuccessResult
 import coil3.request.allowHardware
 import coil3.size.Scale
 import coil3.toBitmap
+import com.buddhanag.luminux.widget.WidgetUpdater
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -101,6 +102,5 @@ class LiveTileExporter(
             }
         }
 
-    // shortcut: spec 10 brings WidgetUpdater; call WidgetUpdater.resetAndUpdateAll(context) here once it exists.
-    private fun updateWidgets() = Unit
+    private suspend fun updateWidgets() = WidgetUpdater.resetAndUpdateAll(context)
 }

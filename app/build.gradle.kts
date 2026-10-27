@@ -106,6 +106,8 @@ dependencies {
     implementation(libs.play.services.ads)
     implementation(libs.ump)
     implementation(libs.androidx.browser)
+    implementation(libs.glance.appwidget)
+    implementation(libs.work.runtime)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
 }

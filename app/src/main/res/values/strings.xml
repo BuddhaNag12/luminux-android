@@ -2,4 +2,7 @@
     <string name="app_name">Luminux</string>
     <string name="ad_sponsored_badge" translatable="false">SPONSORED</string>
     <string name="ad_sponsored">Sponsored</string>
+    <string name="widget_name">Photos</string>
+    <string name="widget_title" translatable="false">photos</string>
+    <string name="widget_description">A live tile of your recent photos, favorites or a collection from Luminux.</string>
 </resources>

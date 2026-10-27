@@ -127,7 +127,7 @@ fun JournalEntryScreen(entryId: String) {
                 return@Column
             }
             Column(
-                Modifier.padding(horizontal = MetroMetrics.margin + 4.dp).padding(bottom = 12.dp).metroFeather(row = 0),
+                Modifier.padding(horizontal = MetroMetrics.margin + 4.dp).padding(top = 14.dp, bottom = 16.dp).metroFeather(row = 0),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 BasicText(

@@ -211,6 +211,8 @@ fun PanoramaSection(
     modifier: Modifier = Modifier,
     /** What the app bar and navigation bar cover; the content can still scroll clear of it. */
     bottomInset: Dp = 0.dp,
+    /** The gap between the section's items. */
+    spacing: Dp = 0.dp,
     content: LazyListScope.() -> Unit,
 ) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -221,6 +223,7 @@ fun PanoramaSection(
         LazyColumn(
             Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(start = MetroMetrics.margin, bottom = 24.dp + bottomInset),
+            verticalArrangement = Arrangement.spacedBy(spacing),
             content = content,
         )
     }

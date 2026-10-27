@@ -187,7 +187,7 @@ fun HubScreen() {
                         }
                     },
                     {
-                        PanoramaSection("journal", bottomInset = bottom) {
+                        PanoramaSection("journal", bottomInset = bottom, spacing = 24.dp) {
                             // The latest few entries; the journal page has the rest.
                             val endPadding = Modifier.padding(end = MetroMetrics.margin + 12.dp)
                             if (journal.entries.isEmpty()) {

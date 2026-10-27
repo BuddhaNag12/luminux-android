@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
@@ -163,6 +164,8 @@ fun HubScreen() {
                                     repo, layout.tiles, faces, edit, open,
                                     Modifier
                                         .padding(end = MetroMetrics.margin)
+                                        // No wider than on the largest phone, so tiles keep their size on an unfolded screen.
+                                        .widthIn(max = 384.dp)
                                         // The tiles drift against the background, so they seem to float above it.
                                         .tiltParallax(-8.dp * settings.tiltStrength.scale),
                                 )

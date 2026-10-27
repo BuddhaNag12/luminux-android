@@ -57,7 +57,7 @@ private fun WidgetReadyDialog(collection: TileCollection, onDismiss: () -> Unit)
     MetroDialog("Widget ready", onDismiss) {
         MetroText(
             "Touch and hold an empty spot on your Home screen, tap Widgets and find Luminux. Once the Photos tile is " +
-                "placed, touch and hold it, choose Customize, set Show to “a collection” and choose “${collection.title}”.",
+                "placed, touch and hold it, tap Settings, set Show to “a collection” and choose “${collection.title}”.",
             MetroType.body,
         )
         Buttons {

@@ -4,6 +4,7 @@ import android.appwidget.AppWidgetManager
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
@@ -52,7 +53,8 @@ class TileConfigActivity : ComponentActivity() {
         // Backing out leaves the widget as it was (or, when adding, not added).
         setResult(RESULT_CANCELED, result)
         if (appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID) return finish()
-        enableEdgeToEdge()
+        // White bar icons: the screen is always the accent, whatever the app theme.
+        enableEdgeToEdge(SystemBarStyle.dark(android.graphics.Color.TRANSPARENT), SystemBarStyle.dark(android.graphics.Color.TRANSPARENT))
         setContent {
             val settings by container.settings.settings.collectAsStateWithLifecycle(initialValue = null)
             MetroTheme(accent = Accent(settings?.accentHex ?: Accent.Cobalt.hex)) {

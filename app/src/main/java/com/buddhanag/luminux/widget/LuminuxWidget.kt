@@ -102,7 +102,7 @@ private fun Tile(config: TileConfig, state: Preferences, store: LiveTileStore, k
     ) {
         when (face) {
             Face.Locked -> LockedFace()
-            Face.NeedsCollection -> Note("Touch and hold the tile, then customize it to choose a collection.")
+            Face.NeedsCollection -> Note("Touch and hold the tile, then tap Settings to choose a collection.")
             Face.Empty -> Box(GlanceModifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Image(ImageProvider(R.drawable.ic_widget_photos), null, GlanceModifier.size(40.dp), colorFilter = ColorFilter.tint(white))
             }

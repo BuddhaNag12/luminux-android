@@ -41,6 +41,29 @@
         <meta-data
             android:name="com.google.android.gms.ads.DELAY_APP_MEASUREMENT_INIT"
             android:value="true" />
+        <!-- The Photos live tile (spec 10). -->
+        <receiver
+            android:name=".widget.PhotosTileReceiver"
+            android:exported="true"
+            android:label="@string/widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/photos_tile_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.TilePinnedReceiver"
+            android:exported="false" />
+        <activity
+            android:name=".widget.TileConfigActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Luminux">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
         <!-- Lifted subjects are copied and shared from the cache as PNGs. -->
         <provider
             android:name="androidx.core.content.FileProvider"

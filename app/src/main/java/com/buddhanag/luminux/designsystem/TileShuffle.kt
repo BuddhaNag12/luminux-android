@@ -1,5 +1,6 @@
 package com.buddhanag.luminux.designsystem
 
+import kotlinx.serialization.Serializable
 import kotlin.random.Random
 
 /**
@@ -12,7 +13,9 @@ object TileShuffle {
     /**
      * [slots] is what each slot shows, [changed] the slot that just changed (null for the first step), and
      * [generations] how many times each slot has changed, so the newest photo can sit on top while it slides in.
+     * Serializable so the widget can keep a day of steps in its state.
      */
+    @Serializable
     data class Step<P>(val slots: List<P>, val changed: Int?, val side: Side, val generations: List<Int>)
 
     fun <P> steps(pool: List<P>, slots: Int, count: Int, random: Random = Random.Default): List<Step<P>> {

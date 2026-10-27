@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One photo slot of the Photos tile; RemoteViews can't set animations, so there's a layout per side. -->
+<ViewFlipper xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/tile_flipper"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:autoStart="true"
+    android:flipInterval="5000"
+    android:inAnimation="@anim/tile_in_bottom"
+    android:outAnimation="@anim/tile_out" />

@@ -23,6 +23,8 @@ billing = "9.1.0"
 playServicesAds = "25.5.0"
 ump = "4.0.0"
 browser = "1.10.0"
+glance = "1.2.0"
+work = "2.12.0"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
@@ -56,6 +58,8 @@ billing-ktx = { module = "com.android.billingclient:billing-ktx", version.ref = 
 play-services-ads = { module = "com.google.android.gms:play-services-ads", version.ref = "playServicesAds" }
 ump = { module = "com.google.android.ump:user-messaging-platform", version.ref = "ump" }
 androidx-browser = { module = "androidx.browser:browser", version.ref = "browser" }
+glance-appwidget = { module = "androidx.glance:glance-appwidget", version.ref = "glance" }
+work-runtime = { module = "androidx.work:work-runtime", version.ref = "work" }
 junit = { module = "junit:junit", version.ref = "junit" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 

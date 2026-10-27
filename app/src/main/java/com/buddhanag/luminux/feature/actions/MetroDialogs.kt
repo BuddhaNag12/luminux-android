@@ -90,7 +90,7 @@ fun ConfirmDialog(message: String, confirmLabel: String, onConfirm: () -> Unit, 
 }
 
 @Composable
-private fun MetroDialog(title: String, onDismiss: () -> Unit, content: @Composable () -> Unit) {
+internal fun MetroDialog(title: String, onDismiss: () -> Unit, content: @Composable () -> Unit) {
     Dialog(onDismissRequest = onDismiss) {
         Column(
             Modifier.fillMaxWidth().background(LocalMetro.current.chrome).padding(20.dp),
@@ -103,6 +103,6 @@ private fun MetroDialog(title: String, onDismiss: () -> Unit, content: @Composab
 }
 
 @Composable
-private fun Buttons(content: @Composable () -> Unit) {
+internal fun Buttons(content: @Composable () -> Unit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) { content() }
 }

@@ -22,6 +22,7 @@ import com.buddhanag.luminux.monetization.NewsFeed
 import com.buddhanag.luminux.monetization.PlayBillingGateway
 import com.buddhanag.luminux.monetization.ProStore
 import com.buddhanag.luminux.monetization.RewardedAds
+import com.buddhanag.luminux.widget.WidgetUpdater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
@@ -67,8 +68,8 @@ class AppContainer(val context: Context) {
     /** One clock for every live tile, so they take turns flipping. */
     val liveTileScheduler by lazy { LiveTileScheduler(MainScope()) }
 
-    // shortcut: no widget yet, so a change of Pro reloads nothing; spec 10's WidgetUpdater.resetAndUpdateAll goes here.
-    val proStore = ProStore(settingsStore, PlayBillingGateway(context), appScope) {}
+    /** A change of Pro locks or unlocks the wide Photos tiles. */
+    val proStore = ProStore(settingsStore, PlayBillingGateway(context), appScope) { WidgetUpdater.resetAndUpdateAll(context) }
 
     val news = NewsFeed(settingsStore, BuildConfig.NEWS_URL.ifEmpty { null })
 

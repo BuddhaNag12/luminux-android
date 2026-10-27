@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A thin stand-in for SF Symbol `photo.on.rectangle`. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="0.8" android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:pathData="M6,5L21,5L21,16M3,8L18,8L18,19L3,19ZM3,17L8,12L12,16L14,14L18,18M14.5,11.5m-1,0a1,1 0,1 0,2 0a1,1 0,1 0,-2 0" />
+</vector>

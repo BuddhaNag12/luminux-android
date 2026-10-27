@@ -1,10 +1,16 @@
 package com.buddhanag.luminux.data
 
 import kotlin.math.abs
+import kotlin.math.atan
+import kotlin.math.atan2
 import kotlin.math.ceil
+import kotlin.math.cos
 import kotlin.math.floor
+import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
+import kotlin.math.sin
 
 // Plain Kotlin types only (no android.graphics), so JVM tests can run all of this.
 
@@ -34,8 +40,8 @@ data class PixelRect(val left: Int, val top: Int, val right: Int, val bottom: In
 }
 
 /**
- * A rotate, crop and adjust edit. The crop is normalized to the rotated image, origin top left.
- * Android v1 never stores it: every save is a new copy (decided).
+ * A rotate, flip, straighten, crop and adjust edit, applied in that order. The crop is normalized to the turned,
+ * flipped and straightened image, origin top left. Android v1 never stores it: every save is a new copy (decided).
  */
 data class EditRecipe(
     /** Counterclockwise quarter turns. */
@@ -44,17 +50,40 @@ data class EditRecipe(
     val adjustments: Adjustments = Adjustments(),
     /** The preset the adjustments came from, for highlighting it; the adjustments alone decide the result. */
     val look: Look? = null,
+    /** Mirrored left to right, after the quarter turns. */
+    val flipped: Boolean = false,
+    /** Degrees, clockwise, within [straightenRange]; the photo is zoomed in just enough that no empty corner shows. */
+    val straighten: Double = 0.0,
 ) {
     val turns: Int get() = ((quarterTurns % 4) + 4) % 4
-    val hasNoGeometry: Boolean get() = turns == 0 && crop == NormRect.UNIT
+    val hasNoGeometry: Boolean get() = turns == 0 && !flipped && straighten == 0.0 && crop == NormRect.UNIT
     val isIdentity: Boolean get() = hasNoGeometry && adjustments.isNeutral
 
     /** One more quarter turn counterclockwise, with the crop turned along so it keeps framing the same part. */
     fun rotatedLeft() = copy(
-        quarterTurns = (quarterTurns + 1) % 4,
+        // The turns come before the mirror, so a mirrored photo turns the other way to turn left on screen.
+        quarterTurns = (quarterTurns + if (flipped) 3 else 1) % 4,
         // A point at (x, y) from the top left lands at (y, 1 - x) after a counterclockwise turn.
         crop = NormRect(crop.minY, 1 - crop.maxX, crop.h, crop.w),
     )
+
+    /** Mirrored left to right as it looks now: the crop and the straightening are mirrored along. */
+    fun flippedHorizontally() = copy(
+        flipped = !flipped,
+        straighten = if (straighten == 0.0) 0.0 else -straighten,
+        crop = crop.copy(x = 1 - crop.maxX),
+    )
+
+    companion object {
+        val straightenRange = -45.0..45.0
+
+        /** How much a [w]×[h] frame must be zoomed when turned by [degrees] to still cover the unturned frame. */
+        fun straightenScale(degrees: Double, w: Double, h: Double): Double {
+            val a = Math.toRadians(abs(degrees))
+            val width = max(w, 1.0); val height = max(h, 1.0)
+            return max((width * cos(a) + height * sin(a)) / width, (width * sin(a) + height * cos(a)) / height)
+        }
+    }
 
     fun rotatedSize(w: Int, h: Int): Pair<Int, Int> = if (turns % 2 == 1) h to w else w to h
 
@@ -76,6 +105,19 @@ enum class Adjustment {
 
     /** Sharpness and vignette only add; everything else goes both ways from zero. */
     val range: ClosedFloatingPointRange<Double> get() = if (this == SHARPNESS || this == VIGNETTE) 0.0..1.0 else -1.0..1.0
+
+    val group: AdjustmentGroup get() = when (this) {
+        EXPOSURE, BRIGHTNESS, CONTRAST, HIGHLIGHTS, SHADOWS -> AdjustmentGroup.LIGHT
+        TEMPERATURE, TINT, SATURATION, VIBRANCE -> AdjustmentGroup.COLOUR
+        SHARPNESS, VIGNETTE -> AdjustmentGroup.EFFECTS
+    }
+}
+
+/** The editor's panels of adjustments, like Lightroom's light, colour and effects. */
+enum class AdjustmentGroup {
+    LIGHT, COLOUR, EFFECTS;
+
+    val adjustments: List<Adjustment> get() = Adjustment.entries.filter { it.group == this }
 }
 
 /** Slider values, each 0 when untouched. Values are clamped to their range and 0 removes the entry. */
@@ -220,16 +262,19 @@ enum class Look(val adjustments: Adjustments) {
 
 enum class Corner(val x: Int, val y: Int) { TOP_LEADING(0, 0), TOP_TRAILING(1, 0), BOTTOM_LEADING(0, 1), BOTTOM_TRAILING(1, 1) }
 
-enum class CropAspect(val label: String) {
-    FREE("free"), ORIGINAL("original"), SQUARE("square"), WIDE("16:9");
+enum class CropAspect(val title: String, private val fixed: Double?) {
+    FREE("free", null), ORIGINAL("original", null), SQUARE("square", 1.0), FOUR_THREE("4:3", 4.0 / 3),
+    THREE_TWO("3:2", 3.0 / 2), SIXTEEN_NINE("16:9", 16.0 / 9), FIVE_FOUR("5:4", 5.0 / 4), SEVEN_FIVE("7:5", 7.0 / 5);
 
-    /** Width over height in pixels; null leaves the crop unconstrained. */
-    fun ratio(w: Int, h: Int): Double? = when (this) {
+    /** Long side over short side; null when the shape is free. */
+    fun longOverShort(w: Int, h: Int): Double? = when (this) {
         FREE -> null
-        ORIGINAL -> w.toDouble() / max(h, 1)
-        SQUARE -> 1.0
-        WIDE -> if (w >= h) 16.0 / 9 else 9.0 / 16
+        ORIGINAL -> max(w, h).toDouble() / max(min(w, h), 1)
+        else -> fixed
     }
+
+    /** Width over height in pixels, wide or tall as asked; null leaves the crop unconstrained. */
+    fun ratio(w: Int, h: Int, landscape: Boolean): Double? = longOverShort(w, h)?.let { if (landscape) it else 1 / it }
 }
 
 /** Pure crop geometry, ported 1:1 from EditorView.swift:398–447. Sizes are the rotated image's pixels. */
@@ -278,4 +323,113 @@ object CropMath {
         x = min(max(crop.x + dx, 0.0), 1 - crop.w),
         y = min(max(crop.y + dy, 0.0), 1 - crop.h),
     )
+}
+
+/** Straightening on ARGB pixels, so the JVM tests can check the corners. */
+object Straighten {
+    /**
+     * Turns [src] ([w]×[h]) clockwise by [degrees] about its centre, zoomed by [EditRecipe.straightenScale] × 1.002 (a
+     * hair over, so resampling never leaves a soft edge) and sampled bilinearly with its edges clamped. Same size out.
+     */
+    fun apply(src: IntArray, w: Int, h: Int, degrees: Double): IntArray {
+        val scale = EditRecipe.straightenScale(degrees, w.toDouble(), h.toDouble()) * 1.002
+        val a = Math.toRadians(degrees)
+        val cos = cos(a) / scale
+        val sin = sin(a) / scale
+        val cx = w / 2.0; val cy = h / 2.0
+        val out = IntArray(w * h)
+        for (y in 0 until h) {
+            val v = y + 0.5 - cy
+            for (x in 0 until w) {
+                val u = x + 0.5 - cx
+                // Back through the clockwise turn (y down) to the source point, in pixel-centre coordinates.
+                val sx = (u * cos + v * sin + cx - 0.5).coerceIn(0.0, w - 1.0)
+                val sy = (-u * sin + v * cos + cy - 0.5).coerceIn(0.0, h - 1.0)
+                val x0 = sx.toInt(); val y0 = sy.toInt()
+                val x1 = min(x0 + 1, w - 1); val y1 = min(y0 + 1, h - 1)
+                val fx = sx - x0; val fy = sy - y0
+                out[y * w + x] = mix(
+                    mix(src[y0 * w + x0], src[y0 * w + x1], fx),
+                    mix(src[y1 * w + x0], src[y1 * w + x1], fx),
+                    fy,
+                )
+            }
+        }
+        return out
+    }
+
+    private fun mix(a: Int, b: Int, t: Double): Int {
+        if (a == b) return a
+        var result = 0
+        for (shift in intArrayOf(24, 16, 8, 0)) {
+            val ca = a ushr shift and 0xFF
+            val cb = b ushr shift and 0xFF
+            result = result or ((ca + (cb - ca) * t + 0.5).toInt().coerceIn(0, 255) shl shift)
+        }
+        return result
+    }
+}
+
+/**
+ * Auto-level without Vision's horizon detector: the strongest near-horizontal straight edge, found with a Hough
+ * transform on a small luma copy, each edge pixel voting only near its own gradient's direction.
+ */
+object Levelling {
+    private const val SIDE = 320
+    private const val STEP = 0.25
+    private const val EDGE = 40.0
+
+    /** The straightening, in degrees, that levels the dominant horizon in [pixels]; 0 when level, null when none. */
+    fun angle(pixels: IntArray, w: Int, h: Int): Double? {
+        // Box-average luma down to about SIDE px on the long side.
+        val f = max(1, (max(w, h) + SIDE - 1) / SIDE)
+        val sw = w / f; val sh = h / f
+        if (sw < 8 || sh < 8) return null
+        val luma = DoubleArray(sw * sh)
+        for (y in 0 until sh * f) for (x in 0 until sw * f) {
+            val p = pixels[y * w + x]
+            luma[(y / f) * sw + x / f] += 0.2126 * (p shr 16 and 0xFF) + 0.7152 * (p shr 8 and 0xFF) + 0.0722 * (p and 0xFF)
+        }
+        for (i in luma.indices) luma[i] /= (f * f).toDouble()
+
+        val range = EditRecipe.straightenRange.endInclusive
+        val angles = (2 * range / STEP).roundToInt() + 1
+        val maxRho = hypot(sw.toDouble(), sh.toDouble()).toInt() + 1
+        val rhos = 2 * maxRho + 1
+        val votes = DoubleArray(angles * rhos)
+        val sins = DoubleArray(angles) { sin(Math.toRadians(-range + it * STEP)) }
+        val coss = DoubleArray(angles) { cos(Math.toRadians(-range + it * STEP)) }
+        // Votes reach a few degrees either side of the pixel's own edge direction.
+        val reach = (3 / STEP).toInt()
+        val edgeX = ArrayList<Int>(); val edgeY = ArrayList<Int>()
+        for (y in 1 until sh - 1) for (x in 1 until sw - 1) {
+            val i = y * sw + x
+            val gx = luma[i - sw + 1] + 2 * luma[i + 1] + luma[i + sw + 1] - luma[i - sw - 1] - 2 * luma[i - 1] - luma[i + sw - 1]
+            val gy = luma[i + sw - 1] + 2 * luma[i + sw] + luma[i + sw + 1] - luma[i - sw - 1] - 2 * luma[i - sw] - luma[i - sw + 1]
+            val strength = hypot(gx, gy)
+            if (strength < EDGE || abs(gy) < abs(gx) * 0.9) continue
+            // The edge runs across the gradient; y points down, so a positive angle falls to the right.
+            val edge = Math.toDegrees(if (gy > 0) atan2(-gx, gy) else atan2(gx, -gy))
+            val centre = ((edge + range) / STEP).roundToInt()
+            edgeX += x; edgeY += y
+            for (k in max(0, centre - reach)..min(angles - 1, centre + reach)) {
+                val rho = (-x * sins[k] + y * coss[k]).roundToInt() + maxRho
+                // Weighted by contrast: a horizon is the strongest straight boundary, not just the longest line.
+                votes[k * rhos + rho] += strength
+            }
+        }
+        var best = 0
+        for (i in votes.indices) if (votes[i] > votes[best]) best = i
+        // A horizon crosses a good part of the frame; texture and short edges don't line up that far.
+        if (votes[best] < sw * 0.3 * EDGE) return null
+        // A thick edge spreads over neighbouring bins, so fit a line through the edge pixels near the peak instead.
+        val a = Math.toRadians(-range + best / rhos * STEP)
+        val rho = (best % rhos - maxRho).toDouble()
+        val near = edgeX.indices.filter { abs(-edgeX[it] * sin(a) + edgeY[it] * cos(a) - rho) <= 2 }
+        val mx = near.sumOf { edgeX[it] }.toDouble() / near.size
+        val my = near.sumOf { edgeY[it] }.toDouble() / near.size
+        val slope = near.sumOf { (edgeX[it] - mx) * (edgeY[it] - my) } / near.sumOf { (edgeX[it] - mx) * (edgeX[it] - mx) }
+        val degrees = -Math.toDegrees(atan(slope))
+        return if (abs(degrees) <= 0.1) 0.0 else degrees.coerceIn(EditRecipe.straightenRange)
+    }
 }

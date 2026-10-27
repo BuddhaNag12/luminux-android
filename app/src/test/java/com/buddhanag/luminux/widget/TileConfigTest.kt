@@ -81,4 +81,32 @@ class TileConfigTest {
         // Fewer photos than slots: each slot keeps its one photo.
         assertEquals(listOf(listOf("a"), listOf("b"), listOf("a")), slotSequences(listOf("a", "b", "a"), listOf("a", "b"), 0))
     }
+
+    @Test fun mosaicGridFollowsTheSize() {
+        assertEquals(3 to 3, mosaic(SMALL.kind()))
+        assertEquals(4 to 2, mosaic(DpSize(320.dp, 150.dp).kind()))
+        assertEquals(3 to 3, mosaic(DpSize(320.dp, 320.dp).kind()))
+        assertEquals(9, slots(TileKind.Small, TileStyle.Mosaic))
+        assertEquals(8, slots(TileKind.Medium, TileStyle.Mosaic))
+        assertEquals(9, slots(TileKind.Large, TileStyle.Mosaic))
+        // The other styles keep the shuffle tile's layout.
+        assertEquals(4, slots(TileKind.Large, TileStyle.Peek))
+        assertEquals(3, slots(TileKind.Medium, TileStyle.Flip))
+    }
+
+    @Test fun styleSurvivesTheWidgetState() {
+        for (style in TileStyle.entries) {
+            val state = mutablePreferencesOf(TileState.style to style.name)
+            assertEquals(style, TileConfig.from(state, emptyList()).style)
+        }
+        // Tiles placed before styles existed, or an unknown value, shuffle.
+        assertEquals(TileStyle.Shuffle, TileConfig.from(mutablePreferencesOf(), emptyList()).style)
+        assertEquals(TileStyle.Shuffle, TileConfig.style(mutablePreferencesOf(TileState.style to "Spin")))
+    }
+
+    @Test fun stepsWithoutAPeekFlagStillDecode() {
+        // Steps saved before styles (spec 10) have no "peek" key.
+        val old = """[{"slots":["0.jpg"],"changed":null,"side":"Bottom","generations":[0]}]"""
+        assertFalse(Json.decodeFromString<List<TileShuffle.Step<String>>>(old).single().peek)
+    }
 }

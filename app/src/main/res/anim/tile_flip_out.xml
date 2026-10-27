@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The old photo turns away edge-on (rotationX 0 to 90 degrees, easeIn 250 ms), drawn as a squash to nothing. -->
+<scale xmlns:android="http://schemas.android.com/apk/res/android"
+    android:duration="250"
+    android:interpolator="@android:interpolator/accelerate_quad"
+    android:fromXScale="1" android:toXScale="1"
+    android:fromYScale="1" android:toYScale="0"
+    android:pivotX="50%" android:pivotY="50%" />

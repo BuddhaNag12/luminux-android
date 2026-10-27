@@ -74,11 +74,13 @@ private fun ConfigScreen(appWidgetId: Int, onSaved: () -> Unit) {
     val scope = rememberCoroutineScope()
     var source by remember { mutableStateOf(TileSource.Recent) }
     var collectionId by remember { mutableStateOf<String?>(null) }
+    var style by remember { mutableStateOf(TileStyle.Shuffle) }
     LaunchedEffect(appWidgetId) {
         val glanceId = GlanceAppWidgetManager(context).getGlanceIdBy(appWidgetId)
         val state = getAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId)
         source = TileConfig.source(state)
         collectionId = state[TileState.collectionId]
+        style = TileConfig.style(state)
     }
 
     Column(
@@ -104,10 +106,13 @@ private fun ConfigScreen(appWidgetId: Int, onSaved: () -> Unit) {
             collections.forEach { c -> Choice(c.title.lowercase(), collectionId == c.id) { collectionId = c.id } }
         }
 
+        MetroText("style", MetroType.caption, Modifier.padding(top = 20.dp), color = Color.White.copy(alpha = 0.7f))
+        TileStyle.entries.forEach { option -> Choice(option.name.lowercase(), style == option) { style = option } }
+
         MetroButton("save", {
             scope.launch {
                 val id = collectionId.takeIf { source == TileSource.Collection }
-                WidgetUpdater.configure(context, appWidgetId, source, id)
+                WidgetUpdater.configure(context, appWidgetId, source, id, style)
                 onSaved()
             }
         }, Modifier.padding(top = 32.dp))

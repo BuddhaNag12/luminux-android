@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A photo slot of the flip style. View animations are 2D, so the turn about the middle is a vertical squash. -->
+<ViewFlipper xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/tile_flipper"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:autoStart="true"
+    android:flipInterval="5000"
+    android:inAnimation="@anim/tile_flip_in"
+    android:outAnimation="@anim/tile_flip_out" />

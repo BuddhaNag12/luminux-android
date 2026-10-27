@@ -46,6 +46,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import kotlinx.coroutines.flow.drop
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -183,7 +184,9 @@ fun Panorama(
                 // swing into view.
                 val feather = if (page < pager.settledPage) FeatherContext() else LocalFeather.current
                 CompositionLocalProvider(LocalFeather provides feather) {
-                    Box(Modifier.fillMaxSize()) { panels[page]() }
+                    // The panel on screen draws over its neighbours: the pager draws later panels on top, which hid the
+                    // hub's tile edit buttons where they reach past the panel's edge into the next one.
+                    Box(Modifier.fillMaxSize().zIndex(if (page == pager.currentPage) 1f else 0f)) { panels[page]() }
                 }
             }
         }

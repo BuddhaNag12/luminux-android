@@ -7,6 +7,11 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateIntOffsetAsState
 import androidx.compose.animation.core.animateIntSizeAsState
+import androidx.compose.animation.core.InfiniteTransition
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
@@ -59,6 +64,7 @@ import com.buddhanag.luminux.data.hub.HubTileKind
 import com.buddhanag.luminux.data.hub.HubTilesRepository
 import com.buddhanag.luminux.data.hub.TilePacking
 import com.buddhanag.luminux.designsystem.LocalMetro
+import com.buddhanag.luminux.designsystem.LocalReduceMotion
 import com.buddhanag.luminux.designsystem.MetroMetrics
 import com.buddhanag.luminux.designsystem.MetroMotion
 import com.buddhanag.luminux.designsystem.metroFeather
@@ -225,6 +231,7 @@ private fun TileSlot(
     val size by animateIntSizeAsState(IntSize(frame.width.roundToInt(), frame.height.roundToInt()), MetroMotion.standard(), label = "tileSize")
     val scale by animateFloatAsState(if (isDimmed) 0.9f else 1f, MetroMotion.standard(), label = "tileScale")
     val alpha by animateFloatAsState(if (isDimmed) 0.6f else 1f, MetroMotion.standard(), label = "tileAlpha")
+    val drift = editDrift(isDimmed, seed = index)
     val askToUnpin = {
         // A photo set only lives on its tile, so check first; an album can be pinned again from its page.
         if (kind is HubTileKind.PhotoSet) edit.confirmsUnpin = kind else unpin(repo, edit, kind)
@@ -245,6 +252,8 @@ private fun TileSlot(
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
+                    translationX = drift.x.dp.toPx()
+                    translationY = drift.y.dp.toPx()
                     // The held tile follows the finger above the grid; its slot stays empty.
                     this.alpha = if (isHeld) 0f else alpha
                 }
@@ -272,6 +281,63 @@ private fun TileSlot(
         }
     }
 }
+
+/**
+ * While tiles are being rearranged, the ones not held float slowly about their slots, now and then edging over a
+ * neighbour, like the start screen's edit mode (HubTileGrid.swift `EditDrift`). Keyframes are (dp, segment ms).
+ */
+internal object EditDrift {
+    /** More than the 4 dp gutter, so neighbours can overlap a little. */
+    const val REACH = 8f
+
+    // Each tile gets its own path and pace, so they don't move in step.
+    private fun turn(seed: Int) = seed % 5 * 230
+    private fun sign(seed: Int) = if (seed % 2 == 0) 1f else -1f
+
+    fun x(seed: Int) = listOf(sign(seed) * REACH to 1700 + turn(seed), -sign(seed) * REACH * 0.6f to 2100 + turn(seed), 0f to 1600)
+    fun y(seed: Int) = listOf(-REACH * 0.7f to 1400 + turn(seed), REACH to 2200, 0f to 1800 + turn(seed))
+
+    /** [strength] eases the drift in and back out; at 0 the tile sits exactly in its slot, whatever the keyframes say. */
+    fun offset(raw: Float, strength: Float) = if (strength <= 0f) 0f else raw * strength
+}
+
+/** The drift offset in dp, read in a graphics layer so it never re-lays out. Zero, and no animation, when not drifting. */
+@Stable
+private class Drift(private val raw: () -> Offset, private val strength: () -> Float) {
+    val x get() = EditDrift.offset(raw().x, strength())
+    val y get() = EditDrift.offset(raw().y, strength())
+}
+
+@Composable
+private fun editDrift(isDimmed: Boolean, seed: Int): Drift {
+    val drifts = isDimmed && !LocalReduceMotion.current
+    // Back into its slot smoothly when editing ends or it's picked.
+    val strength = animateFloatAsState(if (drifts) 1f else 0f, MetroMotion.standard(), label = "driftStrength")
+    // Composed only while it moves: a stopped tile runs no animation and keeps no stale offset after a resize.
+    if (!drifts && strength.value == 0f) return remember { Drift({ Offset.Zero }) { 0f } }
+    val transition = rememberInfiniteTransition(label = "drift")
+    val x = transition.track(EditDrift.x(seed))
+    val y = transition.track(EditDrift.y(seed))
+    return remember(x, y, strength) { Drift({ Offset(x.value, y.value) }) { strength.value } }
+}
+
+@Composable
+private fun InfiniteTransition.track(frames: List<Pair<Float, Int>>) = animateFloat(
+    0f, 0f,
+    infiniteRepeatable(
+        keyframes {
+            durationMillis = frames.sumOf { it.second }
+            // Compose keyframes are linear by default; SwiftUI's CubicKeyframe draws a smooth curve.
+            0f at 0 using MetroMotion.EaseInOut
+            var t = 0
+            frames.forEach { (value, ms) ->
+                t += ms
+                value at t using MetroMotion.EaseInOut
+            }
+        },
+    ),
+    label = "driftTrack",
+)
 
 internal fun unpin(repo: HubTilesRepository, edit: HubEditState, kind: HubTileKind) {
     repo.unpin(kind)

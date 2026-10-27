@@ -294,13 +294,18 @@ fun AssetGrid(
     Box(
         modifier
             .fillMaxSize()
-            .padding(horizontal = MetroMetrics.margin)
+            // A grid under month titles sits in from the edges, lined up with them; others run edge to edge. Insetting
+            // the whole grid, not the tiles, keeps every gesture's coordinates the grid's own.
+            .padding(horizontal = if (sections == null) 0.dp else TITLED_INSET)
             .clipToBounds()
             .onSizeChanged { viewport = it },
     ) {
         if (items.isEmpty()) {
             if (snapshot.isLoaded) {
-                MetroText(emptyMessage, MetroType.body, Modifier.padding(top = 8.dp).metroFeather(row = 0), color = metro.secondary)
+                MetroText(
+                    emptyMessage, MetroType.body,
+                    Modifier.padding(top = 8.dp).padding(horizontal = MetroMetrics.margin).metroFeather(row = 0), color = metro.secondary,
+                )
             }
         } else Box(
             Modifier
@@ -429,7 +434,7 @@ fun AssetGrid(
         }
         AnimatedVisibility(
             showsProNote,
-            Modifier.align(Alignment.TopCenter),
+            Modifier.align(Alignment.TopCenter).padding(horizontal = MetroMetrics.margin),
             enter = slideInVertically(MetroMotion.standard()) { -it } + fadeIn(MetroMotion.standard()),
             exit = fadeOut(MetroMotion.fade()),
         ) {
@@ -479,6 +484,9 @@ private fun ArrayDeque<Pair<Long, Float>>.velocity(): Float {
     return if (seconds <= 0f) 0f else (last().second - first().second) / seconds
 }
 
+/** Grids with month titles sit this far in from the edges, lined up with the titles (AssetGrid.swift `titledInset`). */
+private val TITLED_INSET = 8.dp
+
 @Composable
 private fun MonthHeader(
     section: MonthSection,
@@ -489,17 +497,17 @@ private fun MonthHeader(
 ) {
     val metro = LocalMetro.current
     val title = section.title()
-    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Box(
+    Row(modifier.fillMaxWidth().heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
+        // Just the name and a little around it can be tapped, not the whole row.
+        MetroText(
+            title, metroFont(20.sp, Semilight),
             Modifier
-                .weight(1f)
-                .heightIn(min = 44.dp)
                 .then(if (onTap != null) Modifier.clickable(onClickLabel = "Shows all months", onClick = onTap) else Modifier)
+                .padding(top = 8.dp, bottom = 8.dp, end = 8.dp)
                 .semantics { heading() },
-            contentAlignment = Alignment.CenterStart,
-        ) {
-            MetroText(title, metroFont(20.sp, Semilight), color = metro.accentColor, maxLines = 1)
-        }
+            color = metro.accentColor, maxLines = 1,
+        )
+        Spacer(Modifier.weight(1f))
         AnimatedVisibility(selection.isActive, enter = fadeIn(MetroMotion.standard()), exit = fadeOut(MetroMotion.standard())) {
             val ids = section.range.filter { it < items.size }.map { items[it].id }
             val count = ids.count { it in selection.selected }

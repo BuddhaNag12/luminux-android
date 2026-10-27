@@ -29,7 +29,6 @@ import com.buddhanag.luminux.data.hub.HubTile
 import com.buddhanag.luminux.data.hub.HubTileKind
 import com.buddhanag.luminux.data.hub.HubTileSize
 import com.buddhanag.luminux.designsystem.LiveTile
-import com.buddhanag.luminux.designsystem.LiveTileStyle
 import com.buddhanag.luminux.designsystem.LocalMetro
 import com.buddhanag.luminux.designsystem.MetroText
 import com.buddhanag.luminux.designsystem.MetroTile
@@ -67,18 +66,18 @@ internal fun HubTileFace(tile: HubTile, data: TileFaceData, onClick: () -> Unit,
     MetroTile(onClick, modifier, title = tileTitle(tile.kind, data), showsTitle = !isSmall) {
         val photos = { source: AssetSource -> data.photos.items(source).take(LIVE_ITEMS) }
         when (val kind = tile.kind) {
-            HubTileKind.CameraRoll -> Photos(photos(AssetSource.All), LiveTileStyle.Flip, HubIcons.photo, tile.size)
+            HubTileKind.CameraRoll -> Photos(photos(AssetSource.All), HubIcons.photo, tile.size)
             HubTileKind.Albums -> AmbientTile(AmbientPattern.Albums, data.animatesPatterns)
             HubTileKind.Date -> {
                 AmbientTile(AmbientPattern.Date, data.animatesPatterns)
                 DateFace(isSmall)
             }
-            HubTileKind.Favorites -> Photos(photos(AssetSource.Favorites), LiveTileStyle.Slide, HubIcons.heart, tile.size)
-            HubTileKind.Places -> Photos(data.placeCovers, LiveTileStyle.Slide, HubIcons.map, tile.size)
-            is HubTileKind.Album -> Photos(photos(AssetSource.Album(kind.id)), LiveTileStyle.Flip, HubIcons.albumStack, tile.size)
+            HubTileKind.Favorites -> Photos(photos(AssetSource.Favorites), HubIcons.heart, tile.size)
+            HubTileKind.Places -> Photos(data.placeCovers, HubIcons.map, tile.size)
+            is HubTileKind.Album -> Photos(photos(AssetSource.Album(kind.id)), HubIcons.albumStack, tile.size)
             is HubTileKind.PhotoSet -> Photos(
                 photos(AssetSource.Identifiers(data.layout.sets[kind.id]?.photoIds.orEmpty())),
-                LiveTileStyle.Slide, HubIcons.photoStack, tile.size,
+                HubIcons.photoStack, tile.size,
             )
         }
     }
@@ -87,7 +86,7 @@ internal fun HubTileFace(tile: HubTile, data: TileFaceData, onClick: () -> Unit,
 private const val LIVE_ITEMS = 8
 
 @Composable
-private fun Photos(items: List<MediaItem>, style: LiveTileStyle, fallback: ImageVector, size: HubTileSize) {
+private fun Photos(items: List<MediaItem>, fallback: ImageVector, size: HubTileSize) {
     if (items.isEmpty()) return Glyph(fallback, size == HubTileSize.Small)
     val context = LocalContext.current
     val side = when (size) {
@@ -96,7 +95,8 @@ private fun Photos(items: List<MediaItem>, style: LiveTileStyle, fallback: Image
         HubTileSize.Wide -> 400.dp
     }
     val px = with(LocalDensity.current) { side.roundToPx() }
-    LiveTile(items, style = style, key = { it.id }) { item ->
+    // No style: each change picks flip, slide or zoom at random.
+    LiveTile(items, key = { it.id }) { item ->
         AsyncImage(Thumbnails.gridRequest(context, item, px), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
     }
 }

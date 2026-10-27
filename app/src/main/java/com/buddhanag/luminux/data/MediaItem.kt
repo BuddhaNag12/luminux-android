@@ -54,7 +54,7 @@ sealed interface AssetSource {
     @Serializable data object Favorites : AssetSource
     @Serializable data object Videos : AssetSource
     @Serializable data object Recent : AssetSource
-    /** `"user:<rowId>"`, `"smart:screenshots"` or `"smart:panoramas"`. */
+    /** `"user:<rowId>"`, `"smart:screenshots"`, `"smart:panoramas"` or `"folder:<relativePath>"`. */
     @Serializable data class Album(val id: String) : AssetSource
     /** A journal entry's photos, oldest first. */
     @Serializable data class Identifiers(val ids: List<Long>) : AssetSource
@@ -66,8 +66,14 @@ object AlbumIds {
     const val SCREENSHOTS = "smart:screenshots"
     const val PANORAMAS = "smart:panoramas"
     private const val USER = "user:"
+    private const val FOLDER = "folder:"
 
     fun user(rowId: Long) = "$USER$rowId"
+
+    /** A device folder, e.g. `folder:DCIM/Camera/`: what Android gallery apps call albums. Read-only here. */
+    fun folder(relativePath: String) = "$FOLDER$relativePath"
+
+    fun folderPath(id: String): String? = id.takeIf { it.startsWith(FOLDER) }?.removePrefix(FOLDER)
 
     /** The Room row id of a user album, or null for smart or malformed ids. */
     fun userRowId(id: String): Long? = id.takeIf { it.startsWith(USER) }?.removePrefix(USER)?.toLongOrNull()

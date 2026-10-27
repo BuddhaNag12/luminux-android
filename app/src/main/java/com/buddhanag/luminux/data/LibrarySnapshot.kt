@@ -29,7 +29,8 @@ data class LibrarySnapshot(
         is AssetSource.Album -> when (source.id) {
             AlbumIds.SCREENSHOTS -> all.filter { it.isScreenshot }
             AlbumIds.PANORAMAS -> all.filter { it.isPanorama }
-            else -> AlbumIds.userRowId(source.id)?.let { userAlbumItems(it) }.orEmpty()
+            else -> AlbumIds.folderPath(source.id)?.let { path -> all.filter { it.relativePath == path } }
+                ?: AlbumIds.userRowId(source.id)?.let { userAlbumItems(it) }.orEmpty()
         }
         is AssetSource.Identifiers -> source.ids.mapNotNull { byId[it] }.sortedWith(oldestFirst)
     }
@@ -73,7 +74,31 @@ data class LibrarySnapshot(
                 val list = partial.items(AssetSource.Album(id))
                 list.firstOrNull()?.let { Album(id, title, list.size, it.id, isUserAlbum = false) }
             }
-            return partial.copy(albums = user + smart)
+            return partial.copy(albums = user + smart + folderAlbums(all))
+        }
+
+        /**
+         * Android has no system albums: gallery apps show the folders photos sit in (Camera, WhatsApp Images, Download…).
+         * One album per folder, the most recently used first. Screenshot folders are left out: the smart album has them.
+         */
+        internal fun folderAlbums(all: List<MediaItem>): List<Album> {
+            val folders = all.filter { it.relativePath.isNotEmpty() && !it.isScreenshot }.groupBy { it.relativePath }
+            // `all` is newest first, so each folder's first item is its cover and its newest photo.
+            val ordered = folders.entries.sortedWith(compareBy(newestFirst) { it.value.first() })
+            val names = ordered.associate { (path, _) -> path to folderName(path) }
+            val clashes = names.values.groupingBy { it }.eachCount().filterValues { it > 1 }.keys
+            return ordered.map { (path, list) ->
+                val name = names.getValue(path)
+                // Two folders with one name (DCIM/Instagram, Pictures/Instagram) get their parent to tell them apart.
+                val title = if (name in clashes) "$name · ${folderName(path, fromEnd = 1)}" else name
+                Album(AlbumIds.folder(path), title, list.size, list.first().id, isUserAlbum = false)
+            }
+        }
+
+        /** "DCIM/Camera/" → "camera"; [fromEnd] 1 gives the parent, "dcim". */
+        private fun folderName(path: String, fromEnd: Int = 0): String {
+            val parts = path.trim('/').split('/').filter { it.isNotEmpty() }
+            return (parts.getOrNull(parts.size - 1 - fromEnd) ?: path).lowercase()
         }
     }
 }

@@ -63,13 +63,14 @@ class LibrarySnapshotTest {
     }
 
     @Test fun smartAlbumsShowOnlyWhenNotEmptyAfterUserAlbums() {
-        assertTrue(build(listOf(item(1))).albums.isEmpty())
+        assertTrue(build(listOf(item(1))).albums.none { it.id.startsWith("smart:") })
         val s = build(
             listOf(item(1, path = "Pictures/Screenshots/"), item(2, w = 3000, h = 1000)),
             albums = listOf(AlbumRow(7, "Trip", createdAt = 2), AlbumRow(8, "Empty", createdAt = 1)),
         )
-        assertEquals(listOf("user:8", "user:7", AlbumIds.PANORAMAS, AlbumIds.SCREENSHOTS), s.albums.map { it.id })
-        assertEquals(listOf("empty", "trip", "panoramas", "screenshots"), s.albums.map { it.title })
+        // Device folders come after them (the screenshot sits in the smart album, not a folder of its own).
+        assertEquals(listOf("user:8", "user:7", AlbumIds.PANORAMAS, AlbumIds.SCREENSHOTS, AlbumIds.folder("DCIM/Camera/")), s.albums.map { it.id })
+        assertEquals(listOf("empty", "trip", "panoramas", "screenshots", "camera"), s.albums.map { it.title })
         assertEquals(0, s.album("user:8")!!.count)
         assertEquals(listOf(1L), s.items(AssetSource.Album(AlbumIds.SCREENSHOTS)).map { it.id })
     }
@@ -90,5 +91,39 @@ class LibrarySnapshotTest {
     @Test fun identifiersAreOldestFirst() {
         val s = build(listOf(item(1), item(2), item(3)))
         assertEquals(listOf(3L, 1L), s.items(AssetSource.Identifiers(listOf(1, 3, 404))).map { it.id })
+    }
+
+    @Test fun deviceFoldersBecomeAlbumsNewestFolderFirst() {
+        val s = build(
+            listOf(
+                item(1, path = "DCIM/Camera/"), item(2, path = "Pictures/WhatsApp Images/"),
+                item(3, path = "DCIM/Camera/"), item(4, path = "Download/"),
+            ),
+        )
+        val folders = s.albums.filter { AlbumIds.folderPath(it.id) != null }
+        // Item 1 is the newest photo, so Camera leads; each cover is the folder's newest photo.
+        assertEquals(listOf("camera", "whatsapp images", "download"), folders.map { it.title })
+        assertEquals(listOf(2, 1, 1), folders.map { it.count })
+        assertEquals(listOf(1L, 2L, 4L), folders.map { it.keyItemId })
+        assertFalse(folders.any { it.isUserAlbum })
+        assertEquals(listOf(1L, 3L), s.items(AssetSource.Album(AlbumIds.folder("DCIM/Camera/"))).map { it.id })
+    }
+
+    @Test fun screenshotFoldersStayInTheSmartAlbumOnly() {
+        val s = build(listOf(item(1, path = "Pictures/Screenshots/"), item(2, path = "DCIM/Camera/")))
+        assertEquals(listOf(AlbumIds.SCREENSHOTS, AlbumIds.folder("DCIM/Camera/")), s.albums.map { it.id })
+    }
+
+    @Test fun foldersWithTheSameNameAreToldApartByTheirParent() {
+        val s = build(listOf(item(1, path = "DCIM/Instagram/"), item(2, path = "Pictures/Instagram/")))
+        assertEquals(listOf("instagram · dcim", "instagram · pictures"), s.albums.map { it.title })
+    }
+
+    @Test fun folderIdsRoundTripAndAreNotUserAlbums() {
+        val id = AlbumIds.folder("DCIM/Camera/")
+        assertEquals("DCIM/Camera/", AlbumIds.folderPath(id))
+        assertNull(AlbumIds.userRowId(id))
+        assertNull(AlbumIds.folderPath(AlbumIds.user(3)))
+        assertTrue(build(emptyList()).items(AssetSource.Album(AlbumIds.folder("Gone/"))).isEmpty())
     }
 }

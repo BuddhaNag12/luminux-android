@@ -12,17 +12,21 @@ import java.net.URLEncoder
 /** What a Photos tile shows (TileSourceOption). */
 enum class TileSource(val label: String) { Recent("recent"), Favorites("favorites"), Collection("a collection") }
 
+/** How the tile changes its photos (TileStyle), after the hub's live tiles and Windows Phone's Photos tile. */
+enum class TileStyle { Shuffle, Mosaic, Flip, Peek }
+
 /** Each widget's own settings and shuffle, in its Glance state. */
 object TileState {
     val source = stringPreferencesKey("source")
     val collectionId = stringPreferencesKey("collectionId")
+    val style = stringPreferencesKey("style")
     val stepIndex = intPreferencesKey("stepIndex")
     /** A day of [com.buddhanag.luminux.designsystem.TileShuffle] steps as JSON, one list per slot count. */
     fun steps(slots: Int) = stringPreferencesKey("steps$slots")
 }
 
 /** TileConfigurationIntent's derived values. [stored] is looked up in the app's current list, so renames show up. */
-data class TileConfig(val source: TileSource, val stored: TileCollection?) {
+data class TileConfig(val source: TileSource, val stored: TileCollection?, val style: TileStyle = TileStyle.Shuffle) {
     val needsCollection get() = source == TileSource.Collection && stored == null
 
     /** The `Tiles/` folder whose photos this tile shows; null while it needs a collection. */
@@ -43,11 +47,12 @@ data class TileConfig(val source: TileSource, val stored: TileCollection?) {
 
     companion object {
         fun source(state: Preferences) = TileSource.entries.firstOrNull { it.name == state[TileState.source] } ?: TileSource.Recent
+        fun style(state: Preferences) = TileStyle.entries.firstOrNull { it.name == state[TileState.style] } ?: TileStyle.Shuffle
 
         fun from(state: Preferences, collections: List<TileCollection>): TileConfig {
             val source = source(state)
             val id = state[TileState.collectionId]
-            return TileConfig(source, collections.firstOrNull { it.id == id }.takeIf { source == TileSource.Collection })
+            return TileConfig(source, collections.firstOrNull { it.id == id }.takeIf { source == TileSource.Collection }, style(state))
         }
     }
 }
@@ -65,8 +70,18 @@ fun DpSize.kind() = when {
     else -> TileKind.Large
 }
 
-/** Large shows 4 photos. Small keeps 3 like iOS (for its StandBy face) but shows only the one that changed. */
-fun slots(kind: TileKind) = if (kind == TileKind.Large) 4 else 3
+/** The mosaic's columns and rows: roughly square cells, no more than the 12 photos the app exports. */
+fun mosaic(kind: TileKind) = if (kind == TileKind.Medium) 4 to 2 else 3 to 3
+
+/**
+ * A mosaic fills its grid; otherwise large shows 4 photos, and small keeps 3 like iOS (for its StandBy face) but
+ * shows only the one that changed.
+ */
+fun slots(kind: TileKind, style: TileStyle = TileStyle.Shuffle) = when {
+    style == TileStyle.Mosaic -> mosaic(kind).let { (columns, rows) -> columns * rows }
+    kind == TileKind.Large -> 4
+    else -> 3
+}
 
 enum class Face { Locked, NeedsCollection, Empty, Photos }
 

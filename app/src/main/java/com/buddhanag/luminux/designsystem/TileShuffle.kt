@@ -13,16 +13,22 @@ object TileShuffle {
     /**
      * [slots] is what each slot shows, [changed] the slot that just changed (null for the first step), and
      * [generations] how many times each slot has changed, so the newest photo can sit on top while it slides in.
-     * Serializable so the widget can keep a day of steps in its state.
+     * Serializable so the widget can keep a day of steps in its state. [peek] marks a widget peek step (see [withPeeks]).
      */
     @Serializable
-    data class Step<P>(val slots: List<P>, val changed: Int?, val side: Side, val generations: List<Int>)
+    data class Step<P>(val slots: List<P>, val changed: Int?, val side: Side, val generations: List<Int>, val peek: Boolean = false)
 
     fun <P> steps(pool: List<P>, slots: Int, count: Int, random: Random = Random.Default): List<Step<P>> {
         if (pool.isEmpty() || slots <= 0 || count <= 0) return emptyList()
         val shuffled = pool.shuffled(random)
-        // With fewer photos than slots, the first ones fill in again.
-        val shown = MutableList(slots) { shuffled[it % shuffled.size] }
+        // With fewer photos than slots, they fill in again in a new order, so a mosaic doesn't repeat itself.
+        val fill = shuffled.toMutableList()
+        while (fill.size < slots) {
+            val next = pool.shuffled(random)
+            // A shuffle can land on the order just used; turning it by one keeps it fresh without retrying.
+            fill += if (next == fill.takeLast(pool.size)) next.drop(1) + next.first() else next
+        }
+        val shown = fill.take(slots).toMutableList()
         val queue = shuffled.drop(minOf(slots, shuffled.size)).toMutableList()
         val generations = MutableList(slots) { 0 }
         val steps = mutableListOf(Step(shown.toList(), null, Side.Bottom, generations.toList()))
@@ -44,4 +50,8 @@ object TileShuffle {
         }
         return steps
     }
+
+    /** Repeats every [every]th item with [peek] applied after it, so a tile holds still for a step to show something else. */
+    fun <T> withPeeks(items: List<T>, every: Int, peek: (T) -> T): List<T> =
+        items.flatMapIndexed { index, item -> if ((index + 1) % every == 0) listOf(item, peek(item)) else listOf(item) }
 }

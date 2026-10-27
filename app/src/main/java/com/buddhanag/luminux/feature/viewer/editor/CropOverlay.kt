@@ -24,20 +24,19 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.buddhanag.luminux.data.Corner
-import com.buddhanag.luminux.data.CropAspect
 import com.buddhanag.luminux.data.CropMath
 import com.buddhanag.luminux.data.NormRect
 import kotlin.math.roundToInt
 
 /**
- * Dims outside the crop and lets it be moved (drag inside) or resized (drag a corner). [imageRect] is where the
- * uncropped preview sits, in px; [imageW]×[imageH] is its pixel size, for keeping the aspect's ratio.
+ * Dims outside the crop, draws thirds, and lets it be moved (drag inside) or resized (drag a corner). [imageRect] is
+ * where the uncropped preview sits, in px; [imageW]×[imageH] is its pixel size, for keeping the pixel [ratio].
  */
 @Composable
-internal fun CropOverlay(crop: NormRect, onCrop: (NormRect) -> Unit, aspect: CropAspect, imageRect: Rect, imageW: Int, imageH: Int) {
+internal fun CropOverlay(crop: NormRect, onCrop: (NormRect) -> Unit, ratio: Double?, imageRect: Rect, imageW: Int, imageH: Int) {
     val current by rememberUpdatedState(crop)
     val update by rememberUpdatedState(onCrop)
-    val ratio by rememberUpdatedState(aspect.ratio(imageW, imageH))
+    val lockedRatio by rememberUpdatedState(ratio)
     val frame = Rect(
         imageRect.left + (crop.minX * imageRect.width).toFloat(),
         imageRect.top + (crop.minY * imageRect.height).toFloat(),
@@ -55,6 +54,13 @@ internal fun CropOverlay(crop: NormRect, onCrop: (NormRect) -> Unit, aspect: Cro
                 addRect(frame)
             }
             drawPath(outside, Color.Black.copy(alpha = 0.55f))
+            // Thirds, for lining things up while cropping and straightening.
+            for (third in listOf(1f / 3, 2f / 3)) {
+                val x = frame.left + frame.width * third
+                val y = frame.top + frame.height * third
+                drawLine(Color.White.copy(alpha = 0.35f), Offset(x, frame.top), Offset(x, frame.bottom), 0.5.dp.toPx())
+                drawLine(Color.White.copy(alpha = 0.35f), Offset(frame.left, y), Offset(frame.right, y), 0.5.dp.toPx())
+            }
             drawRect(Color.White, frame.topLeft, frame.size, style = Stroke(1.dp.toPx()))
         }
         // Drags work from the rect at drag start, so the crop never drifts from the finger.
@@ -90,7 +96,7 @@ internal fun CropOverlay(crop: NormRect, onCrop: (NormRect) -> Unit, aspect: Cro
                             update(CropMath.drag(
                                 start, corner,
                                 startX + total.x / imageRect.width, startY + total.y / imageRect.height,
-                                ratio, imageW, imageH,
+                                lockedRatio, imageW, imageH,
                             ))
                         }
                     },

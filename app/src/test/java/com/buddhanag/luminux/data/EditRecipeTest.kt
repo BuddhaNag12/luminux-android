@@ -35,6 +35,28 @@ class EditRecipeTest {
         val r = turned.cropRect(rw, rh)
         assertEquals(150 to 200, r.width to r.height)
     }
+
+    @Test fun flippingTwiceIsNoChangeAndMirrorsTheCrop() {
+        val recipe = EditRecipe(quarterTurns = 1, straighten = 7.0, crop = NormRect(0.1, 0.2, 0.3, 0.4))
+        val flipped = recipe.flippedHorizontally()
+        assertTrue(flipped.flipped)
+        assertEquals(-7.0, flipped.straighten, 0.0)
+        assertEquals(0.6, flipped.crop.minX, 0.0001)
+        val back = flipped.flippedHorizontally()
+        assertFalse(back.flipped)
+        assertEquals(7.0, back.straighten, 0.0)
+        assertEquals(1, back.quarterTurns)
+        assertEquals(0.1, back.crop.minX, 0.0001)
+        assertEquals(0.3, back.crop.w, 0.0001)
+        assertFalse(flipped.hasNoGeometry)
+        assertFalse(EditRecipe(straighten = 1.0).hasNoGeometry)
+    }
+
+    @Test fun aMirroredPhotoStillTurnsLeft() {
+        val turned = EditRecipe().flippedHorizontally().rotatedLeft()
+        assertEquals(3, turned.quarterTurns)
+        assertEquals(20 to 40, turned.rotatedSize(40, 20))
+    }
 }
 
 /** AdjustmentTests from EditingTests.swift, minus the recipe-storage ones (no stored recipes on Android). */

@@ -16,6 +16,8 @@ val admobNativeId = prop("admobNativeId")
 val newsUrl = prop("newsUrl")
 val playLicenseKey = prop("playLicenseKey")
 val proFreeForTesting = prop("proFreeForTesting").toBoolean()
+/** Acts as if Pro were bought: no ads, no pin limit, the viewer's Pro actions. For trying Pro before Play has the product. */
+val proUnlockedForTesting = prop("proUnlockedForTesting").toBoolean()
 /** A Play internal-testing bundle: Google's test ads and an unverified Pro are allowed (production stays strict). */
 val internalTesting = prop("internalTesting").toBoolean()
 val testAdmobAppId = "ca-app-pub-3940256099942544~3347511713"
@@ -41,6 +43,7 @@ android {
         buildConfigField("String", "NEWS_URL", "\"$newsUrl\"")
         buildConfigField("String", "PLAY_LICENSE_KEY", "\"$playLicenseKey\"")
         buildConfigField("boolean", "PRO_FREE_FOR_TESTING", "$proFreeForTesting")
+        buildConfigField("boolean", "PRO_UNLOCKED_FOR_TESTING", "$proUnlockedForTesting")
         // Debug only: a UMP hashed device id (from logcat) puts that device in the EEA for the consent form test.
         buildConfigField("String", "UMP_TEST_DEVICE", "\"${prop("umpTestDevice")}\"")
     }
@@ -82,12 +85,14 @@ val checkReleaseAdIds by tasks.registering {
     val values = mapOf("luminux.admobAppId" to admobAppId, "luminux.admobRewardedId" to admobRewardedId)
     val licenseKey = playLicenseKey
     val freeForTesting = proFreeForTesting
+    val unlockedForTesting = proUnlockedForTesting
     val internal = internalTesting
     val signed = keystoreFile.exists()
     doLast {
         val problems = buildList {
             if (!signed) add("keystore.properties is missing, so the bundle would be signed with the debug key (docs/11-release.md)")
             if (freeForTesting) add("luminux.proFreeForTesting must be off for a Play upload")
+            if (unlockedForTesting) add("luminux.proUnlockedForTesting must be off for a Play upload")
             // Test ads are what an internal-testing build should show: the owner never sees their own live ads.
             if (!internal) {
                 values.forEach { (key, value) ->

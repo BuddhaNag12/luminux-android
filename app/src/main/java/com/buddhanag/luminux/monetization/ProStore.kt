@@ -25,7 +25,7 @@ class ProStore(
     scope: CoroutineScope,
     private val widgetSync: suspend () -> Unit,
 ) {
-    private val _isUnlocked = MutableStateFlow(false)
+    private val _isUnlocked = MutableStateFlow(BuildConfig.PRO_UNLOCKED_FOR_TESTING)
     /** Really bought. Hides the ads, lifts the pin limit and opens the viewer's Pro actions. */
     val isUnlocked: StateFlow<Boolean> = _isUnlocked
     /** Null while Play can't be reached or has no product; the offer card then says so. */
@@ -49,7 +49,7 @@ class ProStore(
 
     /** The last known state, so Pro features don't flicker off while Play answers. */
     suspend fun load() {
-        _isUnlocked.value = prefs.data.first()[IS_PRO] == true
+        _isUnlocked.value = prefs.data.first()[IS_PRO] == true || BuildConfig.PRO_UNLOCKED_FOR_TESTING
     }
 
     /** Loads the price and re-reads the purchases. A refunded purchase drops out of the query, which locks Pro again. */
@@ -99,7 +99,8 @@ class ProStore(
     }
 
     private suspend fun setUnlocked(unlocked: Boolean) {
-        _isUnlocked.value = unlocked
+        // -Pluminux.proUnlockedForTesting=true stands in for a purchase; only a real one is saved.
+        _isUnlocked.value = unlocked || BuildConfig.PRO_UNLOCKED_FOR_TESTING
         if ((prefs.data.first()[IS_PRO] == true) == unlocked) return
         prefs.edit { it[IS_PRO] = unlocked }
         widgetSync()

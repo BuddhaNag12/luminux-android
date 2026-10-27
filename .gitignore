@@ -12,3 +12,9 @@ local.properties
 .idea/
 *.keystore
 *.jks
+
+# macOS Finder
+.DS_Store
+
+# Release signing secrets (see docs/11-release.md)
+keystore.properties

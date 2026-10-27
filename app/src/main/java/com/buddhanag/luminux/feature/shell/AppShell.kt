@@ -13,6 +13,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.buddhanag.luminux.container
 import com.buddhanag.luminux.data.AlbumIds
+import com.buddhanag.luminux.data.PageTransition
 import com.buddhanag.luminux.data.SettingsKeys
 import com.buddhanag.luminux.designsystem.Accent
 import com.buddhanag.luminux.feature.collection.AlbumScreen
@@ -30,7 +31,7 @@ import com.buddhanag.luminux.feature.viewer.ViewerHost
 
 /** AppShell (LuminuxApp.swift): the hub with the page stack over it, deep links and the app-wide side effects. */
 @Composable
-fun AppShell(pendingDeepLink: MutableState<Uri?>) {
+fun AppShell(pendingDeepLink: MutableState<Uri?>, pageTransition: PageTransition) {
     val container = LocalContext.current.container
     val navigator = container.navigator
     val settings by container.settings.settings.collectAsStateWithLifecycle(initialValue = null)
@@ -60,7 +61,7 @@ fun AppShell(pendingDeepLink: MutableState<Uri?>) {
 
     // The full-screen viewer over the stack, zooming out of the tile marked with Modifier.zoomSource.
     ViewerHost(navigator) {
-        MetroStack(navigator, root = { HubScreen() }) { route ->
+        MetroStack(navigator, pageTransition, root = { HubScreen() }) { route ->
             when (route) {
                 Route.Settings -> SettingsScreen()
                 Route.About -> AboutScreen()

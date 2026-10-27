@@ -7,7 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.buddhanag.luminux.data.AssetSource
 import com.buddhanag.luminux.designsystem.Feather
-import kotlinx.coroutines.delay
+import com.buddhanag.luminux.designsystem.motionDelay
 
 /** The pages above the hub (Navigator.swift `Route`). */
 sealed interface Route {
@@ -44,7 +44,7 @@ class Navigator {
         if (path.isEmpty() || isLeaving) return
         if (!reduceMotion) {
             isLeaving = true
-            delay((Feather.exitTime * 1000).toLong())
+            motionDelay((Feather.exitTime * 1000).toLong())
         }
         path.removeAt(path.lastIndex)
         isLeaving = false

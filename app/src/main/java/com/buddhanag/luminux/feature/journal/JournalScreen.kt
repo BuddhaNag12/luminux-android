@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -51,6 +52,7 @@ import com.buddhanag.luminux.data.MediaItem
 import com.buddhanag.luminux.data.AssetSource
 import com.buddhanag.luminux.container
 import com.buddhanag.luminux.data.journal.JournalEntry
+import com.buddhanag.luminux.feature.actions.ActionIcons
 import com.buddhanag.luminux.feature.actions.AddToAlbumSheet
 import com.buddhanag.luminux.feature.actions.selectionActionButtons
 import com.buddhanag.luminux.feature.grid.AssetGrid
@@ -114,6 +116,7 @@ fun JournalEntryScreen(entryId: String) {
         entry == null -> emptyList()
         selection.isActive -> selectionActionButtons(selection) { addToAlbum = it }
         else -> listOf(
+            AppBarButton("select", ActionIcons.select) { selection.begin() },
             AppBarButton("rename", JournalIcons.pencil) { renaming = true },
             AppBarButton("note", JournalIcons.note) { editingNote = true },
         )
@@ -121,29 +124,35 @@ fun JournalEntryScreen(entryId: String) {
     val menu = if (selection.isActive) listOf(AppBarMenuItem("cancel selection") { selection.end() }) else emptyList()
     MetroAppBarHost(buttons, expanded, { expanded = it }, Modifier.background(metro.background), menu) { padding ->
         Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).padding(top = 16.dp)) {
-            MetroText("LUMINUX · JOURNAL", MetroType.overline, Modifier.padding(start = MetroMetrics.margin + 4.dp).metroFeather(row = 0))
+            val overline = if (selection.isActive) "LUMINUX · ${selection.selected.size} SELECTED" else "LUMINUX · JOURNAL"
+            MetroText(overline, MetroType.overline, Modifier.padding(start = MetroMetrics.margin + 4.dp).metroFeather(row = 0))
             if (entry == null) {
                 MetroText("This entry isn't in your journal any more.", MetroType.body, Modifier.padding(horizontal = MetroMetrics.margin + 4.dp), color = metro.secondary)
                 return@Column
             }
-            Column(
-                Modifier.padding(horizontal = MetroMetrics.margin + 4.dp).padding(top = 14.dp, bottom = 16.dp).metroFeather(row = 0),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+            AssetGrid(
+                AssetSource.Identifiers(entry.photoIds), selection, Modifier.weight(1f).padding(top = 8.dp),
+                emptyMessage = "These photos are no longer in your library.", contentPadding = padding,
             ) {
-                BasicText(
-                    journal.title(entry), Modifier.semantics { heading() },
-                    style = metroFont(40.sp, FontWeight.Light).copy(color = metro.foreground), maxLines = 2,
-                    autoSize = TextAutoSize.StepBased(minFontSize = 28.sp, maxFontSize = 40.sp),
-                )
-                MetroText(subtitle(LocalContext.current, entry), MetroType.caption, color = metro.secondary)
-                journal.note(entry)?.let { note ->
-                    MetroText(note, MetroType.body, Modifier.fillMaxWidth().padding(top = 6.dp).clickable(onClickLabel = "Edits the note") { editingNote = true }, maxLines = 4)
+                // The entry's best photos, then its title, dates and note, scrolling away with the photos.
+                Column {
+                    JournalMosaic(journal.keyPhotos(entry, 3), Modifier.fillMaxWidth().aspectRatio(16f / 10f).metroFeather(row = 0))
+                    Column(
+                        Modifier.padding(horizontal = MetroMetrics.margin + 4.dp).padding(top = 14.dp, bottom = 16.dp).metroFeather(row = 1),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        BasicText(
+                            journal.title(entry), Modifier.semantics { heading() },
+                            style = metroFont(40.sp, FontWeight.Light).copy(color = metro.foreground), maxLines = 2,
+                            autoSize = TextAutoSize.StepBased(minFontSize = 28.sp, maxFontSize = 40.sp),
+                        )
+                        MetroText(subtitle(LocalContext.current, entry), MetroType.caption, color = metro.secondary)
+                        journal.note(entry)?.let { note ->
+                            MetroText(note, MetroType.body, Modifier.fillMaxWidth().padding(top = 6.dp).clickable(onClickLabel = "Edits the note") { editingNote = true }, maxLines = 4)
+                        }
+                    }
                 }
             }
-            AssetGrid(
-                AssetSource.Identifiers(entry.photoIds), selection, Modifier.weight(1f),
-                emptyMessage = "These photos are no longer in your library.", contentPadding = padding,
-            )
         }
     }
     AddToAlbumSheet(addToAlbum) { addToAlbum = null }

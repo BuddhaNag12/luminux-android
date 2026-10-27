@@ -112,7 +112,7 @@ internal fun subtitle(context: Context, e: JournalEntry): String {
 
 /** An entry's key photos: one large, two stacked beside it when there are three (JournalViews.swift:12-17). */
 @Composable
-private fun JournalMosaic(ids: List<Long>, modifier: Modifier) {
+internal fun JournalMosaic(ids: List<Long>, modifier: Modifier) {
     val snapshot by LocalContext.current.container.photos.snapshot.collectAsStateWithLifecycle()
     val items = ids.mapNotNull { snapshot.byId[it] }
     BoxWithConstraints(modifier.clearAndSetSemantics {}) {

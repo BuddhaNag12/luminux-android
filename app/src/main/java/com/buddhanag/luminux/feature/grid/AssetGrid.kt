@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -69,6 +70,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -130,6 +132,8 @@ fun AssetGrid(
     jumpTarget: String? = null,
     onJumpConsumed: () -> Unit = {},
     contentPadding: PaddingValues = PaddingValues(),
+    /** Sits above the photos and scrolls away with them (the journal entry's photos and title). */
+    header: (@Composable () -> Unit)? = null,
 ) {
     val container = LocalContext.current.container
     val metro = LocalMetro.current
@@ -158,6 +162,8 @@ fun AssetGrid(
     var swipe by remember { mutableStateOf<SwipeState?>(null) }
     val gutter = with(density) { MetroMetrics.gutter.toPx() }
     val bottomPadding = contentPadding.calculateBottomPadding()
+    var headerHeight by remember { mutableIntStateOf(0) }
+    val headerSpace = with(density) { headerHeight.toDp() }
     val tileSide = GridZoom.tileSide(columns, viewport.width.toFloat(), gutter)
     val latest by rememberUpdatedState(Latest(items, entries, sections, columns, unlocksPro))
     val consumeJump by rememberUpdatedState(onJumpConsumed)
@@ -304,7 +310,7 @@ fun AssetGrid(
             if (snapshot.isLoaded) {
                 MetroText(
                     emptyMessage, MetroType.body,
-                    Modifier.padding(top = 8.dp).padding(horizontal = MetroMetrics.margin).metroFeather(row = 0), color = metro.secondary,
+                    Modifier.padding(top = 8.dp + headerSpace).padding(horizontal = MetroMetrics.margin).metroFeather(row = 0), color = metro.secondary,
                 )
             }
         } else Box(
@@ -381,7 +387,7 @@ fun AssetGrid(
                             }
                         },
                     state = gridState,
-                    contentPadding = PaddingValues(bottom = bottomPadding + 24.dp),
+                    contentPadding = PaddingValues(top = headerSpace, bottom = bottomPadding + 24.dp),
                     horizontalArrangement = Arrangement.spacedBy(MetroMetrics.gutter),
                     verticalArrangement = Arrangement.spacedBy(MetroMetrics.gutter),
                     userScrollEnabled = !pinch.active,
@@ -431,6 +437,19 @@ fun AssetGrid(
                     }
                 }
             }
+        }
+        if (header != null) {
+            // Over the grid's top padding rather than one of its items, so grid indexes stay entry indexes. Drags pass
+            // through to the grid, which moves it.
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .onSizeChanged { headerHeight = it.height }
+                    .offset {
+                        val scrolled = if (gridState.firstVisibleItemIndex == 0) gridState.firstVisibleItemScrollOffset else headerHeight
+                        IntOffset(0, -min(scrolled, headerHeight))
+                    },
+            ) { header() }
         }
         AnimatedVisibility(
             showsProNote,

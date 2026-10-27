@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.widget.RemoteViews
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -21,6 +22,7 @@ import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
 import androidx.glance.LocalSize
 import androidx.glance.action.clickable
+import androidx.glance.appwidget.AndroidRemoteViews
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.actionStartActivity
@@ -71,10 +73,12 @@ class LuminuxWidget : GlanceAppWidget() {
             val collections by container.liveTileStore.collections.collectAsState(initialCollections)
             val isUnlocked by container.proStore.isUnlocked.collectAsState()
             val state = currentState<Preferences>()
+            // Shared by the three sizes, so each photo is decoded and sent to the launcher once per update.
+            val bitmaps = remember(state) { HashMap<File, Bitmap?>() }
             Tile(
                 TileConfig.from(state, collections), state, container.liveTileStore, LocalSize.current.kind(),
                 settings.accentHex, isUnlocked || container.proStore.isTestBuild,
-            )
+            ) { file -> bitmaps.getOrPut(file) { decodePhoto(file) } }
         }
     }
 }
@@ -84,7 +88,10 @@ private val white = ColorProvider(Color.White)
 private val gutter = 3.dp
 
 @Composable
-private fun Tile(config: TileConfig, state: Preferences, store: LiveTileStore, kind: TileKind, accentHex: Int, isPro: Boolean) {
+private fun Tile(
+    config: TileConfig, state: Preferences, store: LiveTileStore, kind: TileKind, accentHex: Int, isPro: Boolean,
+    photo: (File) -> Bitmap?,
+) {
     val context = LocalContext.current
     val folder = config.folder
     val pool = folder?.let(store::imageFiles).orEmpty()
@@ -107,11 +114,11 @@ private fun Tile(config: TileConfig, state: Preferences, store: LiveTileStore, k
                 Image(ImageProvider(R.drawable.ic_widget_photos), null, GlanceModifier.size(40.dp), colorFilter = ColorFilter.tint(white))
             }
             Face.Photos -> {
-                val step = currentStep(state, slots(kind))
-                // The step's files, unless an export has since replaced them; then the first photos until the next reset.
-                val shown = step?.slots?.map { File(store.folder(folder!!), it) }?.takeIf { it.all(File::exists) }
-                    ?: List(slots(kind)) { pool[it % pool.size] }
-                Collage(kind, shown, step?.changed)
+                val names = pool.map { it.name }
+                // The step's photos, unless an export has since replaced them; then the first ones until the next reset.
+                val step = currentStep(state, slots(kind))?.takeIf { names.containsAll(it.slots) }
+                    ?: TileShuffle.Step(List(slots(kind)) { names[it % names.size] }, null, TileShuffle.Side.Bottom, emptyList())
+                Collage(kind, step, names) { photo(File(store.folder(folder!!), it)) }
             }
         }
         if (face != Face.Locked) Label(config.title)
@@ -123,50 +130,76 @@ private fun currentStep(state: Preferences, slots: Int): TileShuffle.Step<String
     return steps?.getOrNull(state[TileState.stepIndex] ?: 0)
 }
 
+/** Each slot changes on its own clock, a little apart, so the photos take turns like the iOS tile's. */
+private val flipIntervals = listOf(5000, 5700, 6400, 7100)
+private val flipperLayouts = mapOf(
+    TileShuffle.Side.Top to R.layout.tile_flipper_top,
+    TileShuffle.Side.Bottom to R.layout.tile_flipper_bottom,
+    TileShuffle.Side.Leading to R.layout.tile_flipper_leading,
+    TileShuffle.Side.Trailing to R.layout.tile_flipper_trailing,
+)
+
 /**
- * One layout per size; a per-widget style (spec 12 E) would add its own collage here.
- * shortcut: no slide-in or fade, Glance draws static RemoteViews; a ViewFlipper could animate the small tile later.
+ * One layout per size; a per-widget style (spec 12 E) would add its own collage here. Every slot is a ViewFlipper
+ * the launcher runs by itself (Glance can't animate), cycling the photos [slotSequences] deals it.
  */
 @Composable
-private fun Collage(kind: TileKind, photos: List<File>, changed: Int?) {
-    // Small and medium slots get the 600 px exports at half size; the 2×2 grid keeps them whole where the
-    // RemoteViews bitmap budget (screen pixels × 4 × 1.5 bytes) has room for four of them.
-    val metrics = LocalContext.current.resources.displayMetrics
-    val sample = if (kind == TileKind.Large && metrics.widthPixels * metrics.heightPixels * 6L > 12_000_000) 1 else 2
+private fun Collage(kind: TileKind, step: TileShuffle.Step<String>, pool: List<String>, photo: (String) -> Bitmap?) {
+    // The small tile shows only the slot that changed last.
+    val shown = if (kind == TileKind.Small) listOf(step.slots[step.changed ?: 0]) else step.slots
+    // Seeded by the widget's own step, so tiles showing the same pool don't flip to the same photo together.
+    val sequences = slotSequences(shown, pool, seed = step.slots.hashCode())
+    @Composable fun slot(index: Int, modifier: GlanceModifier) {
+        val side = TileShuffle.Side.entries[(step.side.ordinal + index) % TileShuffle.Side.entries.size]
+        Slot(sequences[index].mapNotNull(photo), flipIntervals[index], side, modifier)
+    }
     when (kind) {
-        TileKind.Small -> Photo(photos[changed ?: 0], sample, GlanceModifier.fillMaxSize())
+        TileKind.Small -> slot(0, GlanceModifier.fillMaxSize())
         TileKind.Medium -> Row(GlanceModifier.fillMaxSize()) {
-            Photo(photos[0], sample, GlanceModifier.defaultWeight().fillMaxHeight())
+            slot(0, GlanceModifier.defaultWeight().fillMaxHeight())
             Spacer(GlanceModifier.width(gutter))
             Column(GlanceModifier.defaultWeight().fillMaxHeight()) {
-                Photo(photos[1], sample, GlanceModifier.defaultWeight().fillMaxWidth())
+                slot(1, GlanceModifier.defaultWeight().fillMaxWidth())
                 Spacer(GlanceModifier.height(gutter))
-                Photo(photos[2], sample, GlanceModifier.defaultWeight().fillMaxWidth())
+                slot(2, GlanceModifier.defaultWeight().fillMaxWidth())
             }
         }
         TileKind.Large -> Column(GlanceModifier.fillMaxSize()) {
             Row(GlanceModifier.defaultWeight().fillMaxWidth()) {
-                Photo(photos[0], sample, GlanceModifier.defaultWeight().fillMaxHeight())
+                slot(0, GlanceModifier.defaultWeight().fillMaxHeight())
                 Spacer(GlanceModifier.width(gutter))
-                Photo(photos[1], sample, GlanceModifier.defaultWeight().fillMaxHeight())
+                slot(1, GlanceModifier.defaultWeight().fillMaxHeight())
             }
             Spacer(GlanceModifier.height(gutter))
             Row(GlanceModifier.defaultWeight().fillMaxWidth()) {
-                Photo(photos[2], sample, GlanceModifier.defaultWeight().fillMaxHeight())
+                slot(2, GlanceModifier.defaultWeight().fillMaxHeight())
                 Spacer(GlanceModifier.width(gutter))
-                Photo(photos[3], sample, GlanceModifier.defaultWeight().fillMaxHeight())
+                slot(3, GlanceModifier.defaultWeight().fillMaxHeight())
             }
         }
     }
 }
 
 @Composable
-private fun Photo(file: File, sample: Int, modifier: GlanceModifier) {
-    val bitmap: Bitmap? = remember(file, sample) {
-        BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample })
+private fun Slot(photos: List<Bitmap>, interval: Int, side: TileShuffle.Side, modifier: GlanceModifier) {
+    // One photo stays put: a flipper with one child would slide the same photo in again every few seconds.
+    if (photos.size <= 1) {
+        photos.firstOrNull()?.let { Image(ImageProvider(it), null, modifier, contentScale = ContentScale.Crop) } ?: Spacer(modifier)
+        return
     }
-    if (bitmap == null) Spacer(modifier) else Image(ImageProvider(bitmap), null, modifier, contentScale = ContentScale.Crop)
+    val pkg = LocalContext.current.packageName
+    val flipper = RemoteViews(pkg, flipperLayouts.getValue(side)).apply {
+        photos.forEach { addView(R.id.tile_flipper, RemoteViews(pkg, R.layout.tile_photo).apply { setImageViewBitmap(R.id.tile_photo, it) }) }
+        setInt(R.id.tile_flipper, "setFlipInterval", interval)
+    }
+    AndroidRemoteViews(flipper, modifier)
 }
+
+/**
+ * The 600 px exports at 300 px. A tile can hold all 12 photos of its pool across its flippers and three sizes,
+ * 12 × 360 KB ≈ 4.3 MB, well under the RemoteViews bitmap budget (screen pixels × 4 × 1.5 bytes, ≈ 15 MB here).
+ */
+private fun decodePhoto(file: File): Bitmap? = BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = 2 })
 
 /** RemoteViews can't load the bundled Selawik, so the system's light sans stands in. */
 private fun metro(alpha: Float = 1f) =

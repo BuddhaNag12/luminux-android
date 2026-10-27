@@ -77,3 +77,13 @@ fun face(kind: TileKind, isPro: Boolean, needsCollection: Boolean, imageCount: I
     imageCount == 0 -> Face.Empty
     else -> Face.Photos
 }
+
+/**
+ * What each slot's flipper cycles through: its photo in [shown] (the current step) first, then the photos not on
+ * screen dealt out in turn. The flippers keep their own time, so dealing disjoint sets is what keeps two slots from
+ * ever showing the same photo at once. [seed] shuffles the deal, so each step and each widget gets its own order.
+ */
+fun <P> slotSequences(shown: List<P>, pool: List<P>, seed: Int, max: Int = 8): List<List<P>> {
+    val rest = pool.filter { it !in shown }.shuffled(kotlin.random.Random(seed))
+    return shown.mapIndexed { slot, first -> (listOf(first) + rest.filterIndexed { i, _ -> i % shown.size == slot }).take(max) }
+}

@@ -66,4 +66,19 @@ class TileConfigTest {
         val steps = TileShuffle.steps((0 until 12).map { "$it.jpg" }, slots = 4, count = 96, random = Random(42))
         assertEquals(steps, Json.decodeFromString<List<TileShuffle.Step<String>>>(Json.encodeToString(steps)))
     }
+
+    @Test fun slotsNeverShareAPhoto() {
+        val pool = (0 until 12).map { "$it.jpg" }
+        for (seed in 0 until 12) {
+            val sequences = slotSequences(listOf("3.jpg", "7.jpg", "0.jpg", "9.jpg"), pool, seed)
+            assertEquals(listOf("3.jpg", "7.jpg", "0.jpg", "9.jpg"), sequences.map { it.first() })
+            // Disjoint slots, and together they cover the whole pool.
+            assertEquals(pool.toSet(), sequences.flatten().toSet())
+            assertEquals(12, sequences.flatten().size)
+        }
+        // The small tile's one slot cycles everything, capped at 8 children.
+        assertEquals(8, slotSequences(listOf("5.jpg"), pool, 0).single().size)
+        // Fewer photos than slots: each slot keeps its one photo.
+        assertEquals(listOf(listOf("a"), listOf("b"), listOf("a")), slotSequences(listOf("a", "b", "a"), listOf("a", "b"), 0))
+    }
 }

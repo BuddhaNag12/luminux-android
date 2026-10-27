@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- From luminux/docs/brand/luminux-icon.svg. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp"
+    android:viewportWidth="1024" android:viewportHeight="1024">
+    <group android:scaleX="0.6667" android:scaleY="0.6667" android:translateX="170.67" android:translateY="170.67">
+        <path android:fillColor="#FFFFFF" android:pathData="M202.24,192.85 L406.64,230.89 L406.64,793.11 L202.24,831.15 Z"/>
+        <path android:fillColor="#FFFFFF" android:pathData="M502.61,530.77 L821.76,530.77 L821.76,831.15 L502.61,831.15 Z"/>
+        <path android:fillColor="#FFFFFF" android:pathData="M502.61,493.23 L502.61,286.72 L516.12,287.16 L529.57,288.49 L542.9,290.69 L556.06,293.76 L568.99,297.68 L581.64,302.44 L593.95,308.02 L605.87,314.39 L617.34,321.52 L628.33,329.39 L638.77,337.97 L648.64,347.2 L657.87,357.07 L666.45,367.51 L674.32,378.5 L681.45,389.97 L687.82,401.89 L693.4,414.2 L698.16,426.85 L702.08,439.78 L705.15,452.94 L707.35,466.27 L708.68,479.72 L709.12,493.23 Z"/>
+    </group>
+</vector>

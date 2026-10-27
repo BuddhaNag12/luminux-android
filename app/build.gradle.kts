@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -14,7 +16,14 @@ val admobNativeId = prop("admobNativeId")
 val newsUrl = prop("newsUrl")
 val playLicenseKey = prop("playLicenseKey")
 val proFreeForTesting = prop("proFreeForTesting").toBoolean()
+/** A Play internal-testing bundle: Google's test ads and an unverified Pro are allowed (production stays strict). */
+val internalTesting = prop("internalTesting").toBoolean()
 val testAdmobAppId = "ca-app-pub-3940256099942544~3347511713"
+
+// The Play upload key, from a git-ignored keystore.properties (docs/11-release.md). Without it, local release builds are
+// signed with the debug key so the minified build can still be installed and tried; a Play bundle refuses to build.
+val keystoreFile = rootProject.file("keystore.properties")
+val keystore = Properties().apply { if (keystoreFile.exists()) keystoreFile.inputStream().use(::load) }
 
 android {
     namespace = "com.buddhanag.luminux"
@@ -24,7 +33,8 @@ android {
         applicationId = "com.buddhanag.luminux"
         minSdk = 33
         targetSdk = 37
-        versionCode = 1
+        // Every Play upload needs a higher code: -Pluminux.versionCode=2, 3, …
+        versionCode = prop("versionCode").ifEmpty { "1" }.toInt()
         versionName = "0.1.0"
         buildConfigField("String", "ADMOB_REWARDED_ID", "\"$admobRewardedId\"")
         buildConfigField("String", "ADMOB_NATIVE_ID", "\"$admobNativeId\"")
@@ -33,6 +43,15 @@ android {
         buildConfigField("boolean", "PRO_FREE_FOR_TESTING", "$proFreeForTesting")
         // Debug only: a UMP hashed device id (from logcat) puts that device in the EEA for the consent form test.
         buildConfigField("String", "UMP_TEST_DEVICE", "\"${prop("umpTestDevice")}\"")
+    }
+
+    signingConfigs {
+        if (keystoreFile.exists()) create("upload") {
+            storeFile = rootProject.file(keystore.getProperty("storeFile"))
+            storePassword = keystore.getProperty("storePassword")
+            keyAlias = keystore.getProperty("keyAlias")
+            keyPassword = keystore.getProperty("keyPassword")
+        }
     }
 
     buildTypes {
@@ -44,6 +63,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            signingConfig = signingConfigs.findByName("upload") ?: signingConfigs.getByName("debug")
         }
     }
     compileOptions {
@@ -62,14 +82,20 @@ val checkReleaseAdIds by tasks.registering {
     val values = mapOf("luminux.admobAppId" to admobAppId, "luminux.admobRewardedId" to admobRewardedId)
     val licenseKey = playLicenseKey
     val freeForTesting = proFreeForTesting
+    val internal = internalTesting
+    val signed = keystoreFile.exists()
     doLast {
         val problems = buildList {
+            if (!signed) add("keystore.properties is missing, so the bundle would be signed with the debug key (docs/11-release.md)")
             if (freeForTesting) add("luminux.proFreeForTesting must be off for a Play upload")
-            values.forEach { (key, value) ->
-                if (value.isEmpty()) add("$key is empty")
-                else if ("3940256099942544" in value) add("$key is still Google's test ID")
+            // Test ads are what an internal-testing build should show: the owner never sees their own live ads.
+            if (!internal) {
+                values.forEach { (key, value) ->
+                    if (value.isEmpty()) add("$key is empty")
+                    else if ("3940256099942544" in value) add("$key is still Google's test ID")
+                }
+                if (licenseKey.isEmpty()) add("luminux.playLicenseKey is empty, so purchases can't be verified")
             }
-            if (licenseKey.isEmpty()) add("luminux.playLicenseKey is empty, so purchases can't be verified")
         }
         // The native unit isn't checked: the news panel is parked.
         if (problems.isNotEmpty()) throw GradleException(problems.joinToString("\n"))

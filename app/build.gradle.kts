@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.room)
+    alias(libs.plugins.baselineprofile)
 }
 
 // Monetization config (spec 09), from gradle.properties or -P. Empty IDs fall back to Google's test units.
@@ -139,6 +140,9 @@ dependencies {
     implementation(libs.androidx.browser)
     implementation(libs.glance.appwidget)
     implementation(libs.work.runtime)
+    // Installs the baseline profile on devices that don't get it from Play, and lets the generator read it back.
+    implementation(libs.androidx.profileinstaller)
+    baselineProfile(project(":baselineprofile"))
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
 }

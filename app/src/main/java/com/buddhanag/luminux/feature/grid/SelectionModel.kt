@@ -9,12 +9,15 @@ class SelectionModel {
     var isActive by mutableStateOf(false)
         private set
     var selected by mutableStateOf(emptySet<Long>())
+    /** Off on the 15-column overview: its photos are too small to act on, so select mode can't start. */
+    var isAllowed by mutableStateOf(true)
 
     fun toggle(id: Long) {
         selected = if (id in selected) selected - id else selected + id
     }
 
     fun begin(with: Long? = null) {
+        if (!isAllowed) return
         selected = setOfNotNull(with)
         isActive = true
     }

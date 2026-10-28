@@ -21,6 +21,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -59,6 +61,9 @@ fun pivotHeaderOffset(progress: Float, widths: List<Float>, spacing: Float): Flo
 /** The active header is opaque; the others fade to 40% one page away. */
 fun pivotHeaderAlpha(index: Int, progress: Float) = 1f - 0.6f * min(abs(index - progress), 1f)
 
+/** Set by a photo grid while it's pinched, so the pivot it sits in holds still (GridGestures.swift `GridPinchingKey`). */
+val LocalGridPinching = compositionLocalOf<MutableState<Boolean>?> { null }
+
 /**
  * Paged content under a row of headers that slide with the swipe; the active header sits at the left. Pages beside
  * the opening one stay hidden until the pivot is swiped or a header tapped, so a page push doesn't drag a neighbour
@@ -76,6 +81,7 @@ fun Pivot(
     val pager = rememberPagerState(initialPage = selection) { pages.size }
     var showsNeighbours by remember { mutableStateOf(false) }
     val widths = remember { mutableStateListOf<Float>() }
+    val pinching = remember { mutableStateOf(false) }
     val spacing = with(LocalDensity.current) { HeaderSpacing.toPx() }
     val progress = { pager.currentPage + pager.currentPageOffsetFraction }
     val onChange by rememberUpdatedState(onSelectionChange)
@@ -132,12 +138,14 @@ fun Pivot(
                 }
             }
         }
-        HorizontalPager(pager, Modifier.fillMaxWidth().weight(1f), verticalAlignment = Alignment.Top) { page ->
+        HorizontalPager(
+            pager, Modifier.fillMaxWidth().weight(1f), verticalAlignment = Alignment.Top, userScrollEnabled = !pinching.value,
+        ) { page ->
             // Only the page on screen feathers. The others sit off screen, and turning on the screen-edge hinge would
             // swing their tiles into view.
             val feather = if (page != pager.settledPage) FeatherContext() else LocalFeather.current
             val visible = showsNeighbours || page == selection
-            CompositionLocalProvider(LocalFeather provides feather) {
+            CompositionLocalProvider(LocalFeather provides feather, LocalGridPinching provides pinching) {
                 Box(Modifier.fillMaxSize().graphicsLayer { alpha = if (visible) 1f else 0f }) { pages[page].content() }
             }
         }

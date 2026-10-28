@@ -54,9 +54,11 @@ private class LoadedSide(var px: Int = 0)
 /**
  * A square-cropped thumbnail over the chrome colour, with a video's length in the corner. Requests come in buckets so
  * neighbouring zoom levels share one image, and zooming out never swaps a sharper image for a smaller one.
+ *
+ * @param showsBadge off on tiles too small for the video badge (the 15-column overview), where it would cover the photo.
  */
 @Composable
-fun AssetThumbnail(item: MediaItem, pixelSide: Int, modifier: Modifier = Modifier) {
+fun AssetThumbnail(item: MediaItem, pixelSide: Int, modifier: Modifier = Modifier, showsBadge: Boolean = true) {
     val metro = LocalMetro.current
     val context = LocalContext.current
     val loaded = remember(item.thumbKey) { LoadedSide() }
@@ -71,7 +73,7 @@ fun AssetThumbnail(item: MediaItem, pixelSide: Int, modifier: Modifier = Modifie
     }
     Box(modifier.background(metro.chrome).clipToBounds()) {
         AsyncImage(request, contentDescription = null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
-        if (item.type == MediaType.VIDEO) {
+        if (showsBadge && item.type == MediaType.VIDEO) {
             val seconds = item.durationMs / 1000
             MetroText(
                 String.format(Locale.ROOT, "%d:%02d", seconds / 60, seconds % 60), metroFont(12.sp, FontWeight.SemiBold),

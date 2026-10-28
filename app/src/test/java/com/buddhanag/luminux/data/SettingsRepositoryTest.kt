@@ -31,7 +31,7 @@ class SettingsRepositoryTest {
         assertEquals(0x0050EF, s.accentHex)
         assertTrue(s.showsHubBackground)
         assertTrue(s.playsLivingImages)
-        assertEquals(4, s.gridColumns)
+        assertEquals(5, s.gridColumns)
         assertTrue(s.movesWithPhone)
         assertEquals(TiltStrength.MEDIUM, s.tiltStrength)
         assertTrue(s.animatesLiveTiles)
@@ -98,7 +98,8 @@ class SettingsRepositoryTest {
 
     @Test fun gridColumnsSnapToLevels() = runTest {
         val store = fresh()
-        mapOf(5 to 4, 7 to 6, 100 to 8, 3 to 3).forEach { (stored, expected) ->
+        // The old levels snap to the new ones: 4 → 3, 6 → 5, 8 → 7, 2 → 3.
+        mapOf(4 to 3, 6 to 5, 8 to 7, 2 to 3, 100 to 15, 7 to 7).forEach { (stored, expected) ->
             SettingsRepository(store).set(SettingsKeys.gridColumns, stored)
             assertEquals(expected, store.read().gridColumns)
         }

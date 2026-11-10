@@ -29,6 +29,7 @@ object SettingsKeys {
     val tiltStrength = stringPreferencesKey("tiltStrength")
     val hasSeenOnboarding = booleanPreferencesKey("hasSeenOnboarding")
     val pageTransition = stringPreferencesKey("pageTransition")
+    val animatesPages = booleanPreferencesKey("animatesPages")
     /** Android only: tells "never asked" apart from "denied for good" (see [mediaAccess]). */
     val askedMediaAccess = booleanPreferencesKey("askedMediaAccess")
 }
@@ -41,7 +42,10 @@ enum class MetroThemeMode { Dark, Light }
 enum class TiltStrength(val raw: String, val scale: Float) { LOW("low", .45f), MEDIUM("medium", .7f), HIGH("high", 1f) }
 
 /** How pages open and close: every line turning on the screen's edge, or the page underneath scattering away. */
-enum class PageTransition(val raw: String) { TURNSTILE("turnstile"), ZOOM("zoom") }
+enum class PageTransition(val raw: String, val summary: String) {
+    TURNSTILE("turnstile", "Each line of a page swings in from the left edge in turn, like Windows Phone."),
+    ZOOM("zoom", "The page you leave scatters outward, then the next one grows into place, like Windows 10 Mobile."),
+}
 
 /** The photos the hub's background is picked from. */
 @Serializable
@@ -70,7 +74,8 @@ data class AppSettings(
     val namesJournalPlaces: Boolean = true,
     val tiltStrength: TiltStrength = TiltStrength.MEDIUM,
     val hasSeenOnboarding: Boolean = false,
-    val pageTransition: PageTransition = PageTransition.ZOOM,
+    val pageTransition: PageTransition = PageTransition.TURNSTILE,
+    val animatesPages: Boolean = true,
 )
 
 class SettingsRepository(private val store: DataStore<Preferences>) {
@@ -95,6 +100,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
             tiltStrength = TiltStrength.entries.firstOrNull { it.raw == p[SettingsKeys.tiltStrength] } ?: d.tiltStrength,
             hasSeenOnboarding = p[SettingsKeys.hasSeenOnboarding] ?: d.hasSeenOnboarding,
             pageTransition = PageTransition.entries.firstOrNull { it.raw == p[SettingsKeys.pageTransition] } ?: d.pageTransition,
+            animatesPages = p[SettingsKeys.animatesPages] ?: d.animatesPages,
         )
     }
 

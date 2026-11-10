@@ -25,12 +25,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
@@ -62,6 +64,13 @@ class MediaStorePhotoRepository(
     override val access: StateFlow<MediaAccess> = _access.asStateFlow()
     private val _snapshot = MutableStateFlow(LibrarySnapshot())
     override val snapshot: StateFlow<LibrarySnapshot> = _snapshot.asStateFlow()
+    private val _vanishingIds = MutableStateFlow<Set<Long>>(emptySet())
+    override val vanishingIds: StateFlow<Set<Long>> = _vanishingIds.asStateFlow()
+
+    @Volatile private var pendingDeleteIds: Set<Long> = emptySet()
+    @Volatile private var isHoldingDelete = false
+    @Volatile private var holdUntilMs = 0L
+    @Volatile private var holdDeadlineMs = 0L
 
     override val hasMediaLocation: Boolean get() = context.has(Manifest.permission.ACCESS_MEDIA_LOCATION)
 
@@ -77,11 +86,54 @@ class MediaStorePhotoRepository(
                 .mapLatest { a to queryItems() }
                 .flowOn(Dispatchers.IO)
         }
-        combine(loads, albumDao.albums(), albumDao.members()) { (a, items), albums, members ->
-            val next = LibrarySnapshot.build(generation.incrementAndGet(), items, albums, members, System.currentTimeMillis())
-            if (a == MediaAccess.FULL) prune(next)
-            next
-        }.onEach { _snapshot.value = it }.flowOn(Dispatchers.Default).launchIn(scope)
+        scope.launch {
+            combine(loads, albumDao.albums(), albumDao.members()) { (a, items), albums, members ->
+                val next = LibrarySnapshot.build(generation.incrementAndGet(), items, albums, members, System.currentTimeMillis())
+                if (a == MediaAccess.FULL) prune(next)
+                next
+            }.flowOn(Dispatchers.Default).collectLatest { next ->
+                waitForVanishing()
+                _snapshot.value = next
+                if (!isHoldingDelete && System.currentTimeMillis() >= holdUntilMs) {
+                    _vanishingIds.value = emptySet()
+                }
+            }
+        }
+    }
+
+    override fun beginPendingDelete(ids: Set<Long>) {
+        pendingDeleteIds = ids
+        isHoldingDelete = true
+        holdDeadlineMs = System.currentTimeMillis() + 60_000L
+    }
+
+    override fun commitVanish() {
+        val ids = pendingDeleteIds
+        pendingDeleteIds = emptySet()
+        holdUntilMs = System.currentTimeMillis() + PhotoRepository.VANISH_DURATION_MS
+        holdDeadlineMs = holdUntilMs + 60_000L
+        isHoldingDelete = false
+        _vanishingIds.value = ids
+        if (ids.isNotEmpty()) {
+            scope.launch {
+                delay(PhotoRepository.VANISH_DURATION_MS + 1_500L)
+                if (_vanishingIds.value == ids) _vanishingIds.value = emptySet()
+            }
+        }
+    }
+
+    override fun cancelVanish() {
+        pendingDeleteIds = emptySet()
+        holdUntilMs = 0L
+        holdDeadlineMs = 0L
+        isHoldingDelete = false
+        _vanishingIds.value = emptySet()
+    }
+
+    private suspend fun waitForVanishing() {
+        while ((isHoldingDelete || System.currentTimeMillis() < holdUntilMs) && System.currentTimeMillis() < holdDeadlineMs) {
+            delay(20)
+        }
     }
 
     // region Access

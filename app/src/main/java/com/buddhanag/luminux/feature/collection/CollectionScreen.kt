@@ -30,6 +30,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -41,6 +43,7 @@ import com.buddhanag.luminux.data.MediaItem
 import com.buddhanag.luminux.designsystem.AppBarButton
 import com.buddhanag.luminux.designsystem.AppBarMenuItem
 import com.buddhanag.luminux.designsystem.JumpListView
+import com.buddhanag.luminux.designsystem.LocalExpandedWidth
 import com.buddhanag.luminux.designsystem.LocalMetro
 import com.buddhanag.luminux.designsystem.MetroAppBarHost
 import com.buddhanag.luminux.designsystem.MetroMetrics
@@ -173,8 +176,9 @@ fun CollectionScreen(initialPage: Int, showsJumpList: Boolean = false) {
 @Composable
 private fun AlbumsGrid(snapshot: LibrarySnapshot, padding: PaddingValues, onOpen: (String) -> Unit) {
     val metro = LocalMetro.current
+    val columns = if (LocalExpandedWidth.current) 4 else 2
     LazyVerticalGrid(
-        GridCells.Fixed(2),
+        GridCells.Fixed(columns),
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
             start = MetroMetrics.margin, end = MetroMetrics.margin, bottom = padding.calculateBottomPadding() + 24.dp,
@@ -194,9 +198,10 @@ private fun AlbumsGrid(snapshot: LibrarySnapshot, padding: PaddingValues, onOpen
             val interaction = remember { MutableInteractionSource() }
             Column(
                 Modifier
-                    .metroFeather(row = index / 2, column = index % 2)
+                    .metroFeather(row = index / columns, column = index % columns)
                     .tiltPress(interaction, trackTouch = false)
-                    .clickable(interaction, indication = null, role = Role.Button) { onOpen(album.id) },
+                    .clickable(interaction, indication = null, role = Role.Button) { onOpen(album.id) }
+                    .clearAndSetSemantics { contentDescription = album.spokenLabel },
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 AlbumCover(album, 200.dp, Modifier.fillMaxWidth().aspectRatio(1f))

@@ -35,10 +35,12 @@ import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.buddhanag.luminux.container
 import com.buddhanag.luminux.designsystem.Accent
+import com.buddhanag.luminux.designsystem.AccentContrast
 import com.buddhanag.luminux.designsystem.LocalMetro
 import com.buddhanag.luminux.designsystem.MetroButton
 import com.buddhanag.luminux.designsystem.MetroText
 import com.buddhanag.luminux.designsystem.MetroTheme
+import com.buddhanag.luminux.designsystem.MetroThemeMode
 import com.buddhanag.luminux.designsystem.MetroType
 import com.buddhanag.luminux.designsystem.Semilight
 import com.buddhanag.luminux.designsystem.metroFont
@@ -53,11 +55,17 @@ class TileConfigActivity : ComponentActivity() {
         // Backing out leaves the widget as it was (or, when adding, not added).
         setResult(RESULT_CANCELED, result)
         if (appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID) return finish()
-        // White bar icons: the screen is always the accent, whatever the app theme.
-        enableEdgeToEdge(SystemBarStyle.dark(android.graphics.Color.TRANSPARENT), SystemBarStyle.dark(android.graphics.Color.TRANSPARENT))
         setContent {
             val settings by container.settings.settings.collectAsStateWithLifecycle(initialValue = null)
-            MetroTheme(accent = Accent(settings?.accentHex ?: Accent.Cobalt.hex)) {
+            val accentHex = settings?.accentHex ?: Accent.Cobalt.hex
+            val barStyle = if (AccentContrast.needsDarkText(accentHex)) {
+                SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+            } else {
+                SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+            }
+            LaunchedEffect(accentHex) { enableEdgeToEdge(barStyle, barStyle) }
+            val theme = if (AccentContrast.needsDarkText(accentHex)) MetroThemeMode.Light else MetroThemeMode.Dark
+            MetroTheme(theme = theme, accent = Accent(accentHex)) {
                 ConfigScreen(appWidgetId) {
                     setResult(RESULT_OK, result)
                     finish()
@@ -70,11 +78,16 @@ class TileConfigActivity : ComponentActivity() {
 @Composable
 private fun ConfigScreen(appWidgetId: Int, onSaved: () -> Unit) {
     val context = LocalContext.current
+    val metro = LocalMetro.current
+    val onAccent = metro.onAccent
     val collections by context.container.liveTileStore.collections.collectAsStateWithLifecycle(initialValue = emptyList())
+    val catalog by context.container.liveTileStore.catalog.collectAsStateWithLifecycle(initialValue = emptyList())
+    val choices = catalog.ifEmpty { collections }
     val scope = rememberCoroutineScope()
     var source by remember { mutableStateOf(TileSource.Recent) }
     var collectionId by remember { mutableStateOf<String?>(null) }
     var style by remember { mutableStateOf(TileStyle.Shuffle) }
+    var isSaving by remember { mutableStateOf(false) }
     LaunchedEffect(appWidgetId) {
         val glanceId = GlanceAppWidgetManager(context).getGlanceIdBy(appWidgetId)
         val state = getAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId)
@@ -85,33 +98,38 @@ private fun ConfigScreen(appWidgetId: Int, onSaved: () -> Unit) {
 
     Column(
         Modifier.fillMaxSize()
-            .background(LocalMetro.current.accentColor)
+            .background(metro.accentColor)
             .safeDrawingPadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 16.dp),
     ) {
-        MetroText("LUMINUX", MetroType.overline, color = Color.White)
-        MetroText("photos tile", MetroType.title, Modifier.padding(bottom = 16.dp), color = Color.White)
-        MetroText("show", MetroType.caption, color = Color.White.copy(alpha = 0.7f))
+        MetroText("LUMINUX", MetroType.overline, color = onAccent)
+        MetroText("photos tile", MetroType.title, Modifier.padding(bottom = 16.dp), color = onAccent)
+        MetroText("show", MetroType.caption, color = onAccent.copy(alpha = 0.7f))
         TileSource.entries.forEach { option -> Choice(option.label, source == option) { source = option } }
 
         if (source == TileSource.Collection) {
-            MetroText("collection", MetroType.caption, Modifier.padding(top = 20.dp), color = Color.White.copy(alpha = 0.7f))
-            if (collections.isEmpty()) {
+            MetroText("collection", MetroType.caption, Modifier.padding(top = 20.dp), color = onAccent.copy(alpha = 0.7f))
+            if (choices.isEmpty()) {
                 MetroText(
-                    "None yet. In Luminux, open an album or photo set and choose \"make a widget\" from its menu.",
-                    MetroType.body, Modifier.padding(top = 8.dp), color = Color.White,
+                    "No albums or photo sets yet. Make an album or pin a photo set in Luminux.",
+                    MetroType.body, Modifier.padding(top = 8.dp), color = onAccent,
                 )
             }
-            collections.forEach { c -> Choice(c.title.lowercase(), collectionId == c.id) { collectionId = c.id } }
+            choices.forEach { c -> Choice(c.title.lowercase(), collectionId == c.id) { collectionId = c.id } }
         }
 
-        MetroText("style", MetroType.caption, Modifier.padding(top = 20.dp), color = Color.White.copy(alpha = 0.7f))
+        MetroText("style", MetroType.caption, Modifier.padding(top = 20.dp), color = onAccent.copy(alpha = 0.7f))
         TileStyle.entries.forEach { option -> Choice(option.name.lowercase(), style == option) { style = option } }
 
-        MetroButton("save", {
+        MetroButton(if (isSaving) "saving…" else "save", {
+            if (isSaving) return@MetroButton
+            isSaving = true
             scope.launch {
                 val id = collectionId.takeIf { source == TileSource.Collection }
+                if (id != null && !context.container.liveTileExporter.contains(id)) {
+                    choices.firstOrNull { it.id == id }?.let { context.container.liveTileExporter.exportOne(it) }
+                }
                 WidgetUpdater.configure(context, appWidgetId, source, id, style)
                 onSaved()
             }
@@ -121,9 +139,10 @@ private fun ConfigScreen(appWidgetId: Int, onSaved: () -> Unit) {
 
 @Composable
 private fun Choice(label: String, selected: Boolean, onClick: () -> Unit) {
+    val onAccent = LocalMetro.current.onAccent
     MetroText(
         label, metroFont(28.sp, Semilight),
         Modifier.fillMaxWidth().selectable(selected, role = Role.RadioButton, onClick = onClick).padding(vertical = 8.dp),
-        color = if (selected) Color.White else Color.White.copy(alpha = 0.55f),
+        color = if (selected) onAccent else onAccent.copy(alpha = 0.55f),
     )
 }

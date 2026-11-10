@@ -234,7 +234,7 @@ private fun GlyphStack(glyph: ImageVector, shown: (Int) -> Float) {
                     .background(metro.accentColor.copy(alpha = TileOpacities[index])),
                 contentAlignment = Alignment.Center,
             ) {
-                if (index == 2) Image(glyph, null, Modifier.size(64.dp), colorFilter = ColorFilter.tint(Color.White))
+                if (index == 2) Image(glyph, null, Modifier.size(64.dp), colorFilter = ColorFilter.tint(metro.onAccent))
             }
         }
     }

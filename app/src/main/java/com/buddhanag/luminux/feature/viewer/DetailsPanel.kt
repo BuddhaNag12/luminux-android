@@ -43,6 +43,7 @@ import com.buddhanag.luminux.container
 import com.buddhanag.luminux.data.MediaItem
 import com.buddhanag.luminux.designsystem.LocalMetro
 import com.buddhanag.luminux.designsystem.MetroMetrics
+import com.buddhanag.luminux.designsystem.MetroProgress
 import com.buddhanag.luminux.designsystem.MetroText
 import com.buddhanag.luminux.designsystem.MetroType
 import com.buddhanag.luminux.designsystem.Semilight
@@ -119,7 +120,7 @@ internal fun DetailsPanel(
         ) {
             val loaded = details
             if (loaded == null) {
-                Spinner(Modifier.padding(top = 8.dp))
+                MetroProgress(Modifier.padding(top = 8.dp))
             } else {
                 loaded.rows.forEach { row ->
                     Column(Modifier.padding(bottom = 16.dp).semantics(mergeDescendants = true) {}) {

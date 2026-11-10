@@ -41,9 +41,14 @@ data class HubLayout(val tiles: List<HubTile> = DEFAULT, val sets: Map<String, P
         /** Albums and photo sets pinned without Pro; Pro pins as many as you like. */
         const val FREE_PIN_LIMIT = 2
 
+        /** Camera roll wide across the top, albums under it with the date on its right, then favorites and places. */
         val DEFAULT = listOf(
-            HubTileKind.CameraRoll, HubTileKind.Albums, HubTileKind.Date, HubTileKind.Favorites, HubTileKind.Places,
-        ).map { HubTile(it) }
+            HubTile(HubTileKind.CameraRoll, HubTileSize.Wide),
+            HubTile(HubTileKind.Albums),
+            HubTile(HubTileKind.Date),
+            HubTile(HubTileKind.Favorites),
+            HubTile(HubTileKind.Places),
+        )
 
         /** A built-in tile is never lost, even from a damaged store. */
         fun loaded(tiles: List<HubTile>, sets: Map<String, PhotoSet>) =
@@ -93,6 +98,9 @@ data class HubLayout(val tiles: List<HubTile> = DEFAULT, val sets: Map<String, P
         val old = sets[fromSet] ?: return this
         return copy(sets = sets + (fromSet to old.copy(photoIds = old.photoIds.filter { it !in ids })))
     }
+
+    /** Puts the built-in tiles back in their default places and sizes; pinned albums and sets follow, as they were. */
+    fun resetLayout() = copy(tiles = DEFAULT + tiles.filter { !it.kind.isBuiltIn })
 
     /** Drops tiles for albums that are gone from the library. Photo sets are never pruned. */
     fun prune(albumIds: Set<String>) = copy(tiles = tiles.filter { val k = it.kind; k !is HubTileKind.Album || k.id in albumIds })

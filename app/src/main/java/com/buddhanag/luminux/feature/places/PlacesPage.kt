@@ -47,6 +47,7 @@ import com.buddhanag.luminux.designsystem.MetroAppBarHost
 import com.buddhanag.luminux.designsystem.MetroMetrics
 import com.buddhanag.luminux.designsystem.MetroText
 import com.buddhanag.luminux.designsystem.MetroType
+import com.buddhanag.luminux.designsystem.OverflowingTitle
 import com.buddhanag.luminux.designsystem.Semilight
 import com.buddhanag.luminux.designsystem.metroFeather
 import com.buddhanag.luminux.designsystem.metroFont
@@ -137,10 +138,10 @@ fun PlaceScreen(placeId: String) {
                 if (selection.isActive) "LUMINUX · ${selection.selected.size} SELECTED" else "LUMINUX · PLACES", MetroType.overline,
                 Modifier.padding(start = MetroMetrics.margin + 4.dp).metroFeather(row = 0),
             )
-            MetroText(
-                place?.let { journal.title(it) } ?: "place", MetroType.title,
-                Modifier.padding(start = MetroMetrics.margin + 1.dp, bottom = 8.dp).fillMaxWidth().clipToBounds().metroFeather(row = 0).semantics { heading() },
-                maxLines = 1, softWrap = false,
+            OverflowingTitle(
+                place?.let { journal.title(it) } ?: "place",
+                Modifier.padding(bottom = 8.dp),
+                Modifier.padding(start = MetroMetrics.margin + 1.dp).metroFeather(row = 0).semantics { heading() },
             )
             AssetGrid(
                 AssetSource.Identifiers(place?.photoIds.orEmpty()), selection, Modifier.weight(1f),

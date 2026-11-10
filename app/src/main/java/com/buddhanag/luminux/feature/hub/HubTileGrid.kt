@@ -110,12 +110,14 @@ internal fun HubTileGrid(
     edit: HubEditState,
     onOpen: (HubTileKind) -> Unit,
     modifier: Modifier = Modifier,
+    limit: Int? = null,
 ) {
+    val shown = if (limit != null) tiles.take(limit) else tiles
     BoxWithConstraints(modifier.fillMaxWidth()) {
         val density = LocalDensity.current
         val width = constraints.maxWidth.toFloat()
         val spacing = with(density) { MetroMetrics.gutter.toPx() }
-        val placements = TilePacking.place(tiles.map { it.size })
+        val placements = TilePacking.place(shown.map { it.size })
         val frames = placements.map { TilePacking.frame(it, width, spacing) }
         val height by animateDpAsState(
             with(density) { TilePacking.height(placements, width, spacing).toDp() }, MetroMotion.standard(), label = "gridHeight",
@@ -137,7 +139,8 @@ internal fun HubTileGrid(
                 .pointerInput(Unit) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                        val start = repo.layout.value.tiles
+                        val full = repo.layout.value.tiles
+                        val start = if (limit != null) full.take(limit) else full
                         val startFrames = framesNow(start)
                         val index = startFrames.indexOfFirst { it.contains(down.position) }.takeIf { it >= 0 } ?: return@awaitEachGesture
                         val slop = 10.dp.toPx()
@@ -182,19 +185,19 @@ internal fun HubTileGrid(
                     }
                 },
         ) {
-            tiles.forEachIndexed { index, tile ->
+            shown.forEachIndexed { index, tile ->
                 key(tile.kind) {
                     TileSlot(
-                        tile, index, tiles.size, frames[index], placements[index].let { it.row / 2 to it.column / 2 },
+                        tile, index, shown.size, frames[index], placements[index].let { it.row / 2 to it.column / 2 },
                         data, edit, repo, isHeld = drag?.kind == tile.kind, onOpen,
                     )
                 }
             }
-            val held = drag?.let { d -> tiles.indexOfFirst { it.kind == d.kind } }?.takeIf { it >= 0 }
+            val held = drag?.let { d -> shown.indexOfFirst { it.kind == d.kind } }?.takeIf { it >= 0 }
             if (held != null) {
                 val size = frames[held].size
                 HubTileFace(
-                    tiles[held], data, onClick = {},
+                    shown[held], data, onClick = {},
                     Modifier
                         .offset { IntOffset(floating.x.roundToInt(), floating.y.roundToInt()) }
                         .size(with(density) { size.width.toDp() }, with(density) { size.height.toDp() })

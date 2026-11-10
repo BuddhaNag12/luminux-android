@@ -25,6 +25,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.buddhanag.luminux.container
 import com.buddhanag.luminux.data.SettingsKeys
 import com.buddhanag.luminux.designsystem.Accent
+import com.buddhanag.luminux.designsystem.FoldProvider
 import com.buddhanag.luminux.designsystem.LocalLiveTileScheduler
 import com.buddhanag.luminux.designsystem.LocalMetro
 import com.buddhanag.luminux.designsystem.MetroMotion
@@ -54,30 +55,32 @@ fun LuminuxRoot(pendingDeepLink: MutableState<Uri?>, forcesOnboarding: Boolean) 
     val accent = Accent(settings?.accentHex ?: Accent.Cobalt.hex)
     SystemBars(theme)
     MetroTheme(theme, accent) {
-        CompositionLocalProvider(
-            LocalLiveTileScheduler provides container.liveTileScheduler,
-            LocalLaunchSplashShowing provides showsSplash,
-        ) {
-            Box(Modifier.fillMaxSize().background(LocalMetro.current.background)) {
-                // Nothing until settings load (a few ms, under the splash), so the tour never flashes for returning users.
-                settings?.let { s ->
-                    val gate = when {
-                        !s.hasSeenOnboarding || forced -> Gate.Onboarding
-                        access.canRead -> Gate.Shell
-                        else -> Gate.Permission
-                    }
-                    Crossfade(gate, animationSpec = MetroMotion.fade(), label = "gate") {
-                        when (it) {
-                            Gate.Onboarding -> OnboardingScreen(isReplay = false) {
-                                forced = false
-                                scope.launch { container.settings.set(SettingsKeys.hasSeenOnboarding, true) }
+        FoldProvider {
+            CompositionLocalProvider(
+                LocalLiveTileScheduler provides container.liveTileScheduler,
+                LocalLaunchSplashShowing provides showsSplash,
+            ) {
+                Box(Modifier.fillMaxSize().background(LocalMetro.current.background)) {
+                    // Nothing until settings load (a few ms, under the splash), so the tour never flashes for returning users.
+                    settings?.let { s ->
+                        val gate = when {
+                            !s.hasSeenOnboarding || forced -> Gate.Onboarding
+                            access.canRead -> Gate.Shell
+                            else -> Gate.Permission
+                        }
+                        Crossfade(gate, animationSpec = MetroMotion.fade(), label = "gate") {
+                            when (it) {
+                                Gate.Onboarding -> OnboardingScreen(isReplay = false) {
+                                    forced = false
+                                    scope.launch { container.settings.set(SettingsKeys.hasSeenOnboarding, true) }
+                                }
+                                Gate.Shell -> AppShell(pendingDeepLink, s.pageTransition, s.animatesPages)
+                                Gate.Permission -> PermissionScreen()
                             }
-                            Gate.Shell -> AppShell(pendingDeepLink, s.pageTransition)
-                            Gate.Permission -> PermissionScreen()
                         }
                     }
+                    if (showsSplash) LaunchSplash { showsSplash = false }
                 }
-                if (showsSplash) LaunchSplash { showsSplash = false }
             }
         }
     }

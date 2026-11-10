@@ -1,5 +1,6 @@
 package com.buddhanag.luminux.data.journal
 
+import com.buddhanag.luminux.data.MediaItem
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
@@ -129,6 +130,30 @@ object JournalBuilder {
         if (ids.size <= count || count <= 1) return ids.take(count)
         val step = (ids.size - 1).toDouble() / (count - 1)
         return List(count) { ids[(it * step).roundToInt()] } // half up, like Swift's rounded() for positives
+    }
+
+    /** Old id -> new id for each entry that's gone (e.g. its first photo was deleted) whose photos continue in another entry. */
+    fun successors(previous: List<JournalEntry>, current: List<JournalEntry>): Map<String, String> {
+        val currentIds = current.mapTo(HashSet()) { it.id }
+        val result = LinkedHashMap<String, String>()
+        for (old in previous) {
+            if (old.id in currentIds) continue
+            val photos = old.photoIds.toHashSet()
+            current.firstOrNull { entry -> entry.photoIds.any { it in photos } }?.let { result[old.id] = it.id }
+        }
+        return result
+    }
+
+    fun isEditedName(displayName: String): Boolean =
+        displayName.contains("-edited", ignoreCase = true) || displayName.contains("_edited", ignoreCase = true)
+
+    /**
+     * Only camera captures make the journal: exclude screenshots and edited copies (`-edited` / `_edited`), and require
+     * either a path under `DCIM/Camera` or a GPS location (`Journal.swift#L259`).
+     */
+    fun isFromCamera(item: MediaItem, hasLocation: Boolean): Boolean {
+        if (item.isScreenshot || isEditedName(item.displayName)) return false
+        return item.relativePath.startsWith("DCIM/Camera", ignoreCase = true) || hasLocation
     }
 
     /** The anchor is the moment's first located photo; an unlocated photo never splits on distance. */

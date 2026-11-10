@@ -40,8 +40,18 @@ data class JournalState(
     val placeNames: Map<String, String> = emptyMap(),
     /** Off in settings: names already looked up stay cached but hidden. */
     val usesPlaceNames: Boolean = true,
+    /** Old id -> successor id when an entry's first photo is deleted. */
+    val successors: Map<String, String> = emptyMap(),
 ) {
-    fun entry(id: String) = entries.firstOrNull { it.id == id }
+    fun entry(id: String): JournalEntry? {
+        var cur = id
+        repeat(successors.size + 1) {
+            entries.firstOrNull { it.id == cur }?.let { return it }
+            cur = successors[cur] ?: return null
+        }
+        return null
+    }
+
     fun place(id: String) = places.firstOrNull { it.id == id }
 
     fun placeName(c: Coordinate?): String? =
@@ -74,13 +84,14 @@ class JournalRepository(
     private data class Built(val entries: List<JournalEntry> = emptyList(), val places: List<Place> = emptyList(), val isBuilt: Boolean = false)
 
     private val built = MutableStateFlow(Built())
+    private val successors = MutableStateFlow<Map<String, String>>(emptyMap())
     private val namesPlaces = settings.settings.map { it.namesJournalPlaces }.distinctUntilChanged()
     private val namer = PlaceNamer(context)
     /** Lookups that came back empty this session; only touched from [keepBuilt]. */
     private val failedPlaces = mutableSetOf<String>()
 
-    val state: StateFlow<JournalState> = combine(built, dao.notes(), dao.placeNames(), namesPlaces) { b, notes, names, uses ->
-        JournalState(b.entries, b.places, b.isBuilt, notes.associateBy { it.entryId }, names.associate { it.cellKey to it.name }, uses)
+    val state: StateFlow<JournalState> = combine(built, dao.notes(), dao.placeNames(), namesPlaces, successors) { b, notes, names, uses, succ ->
+        JournalState(b.entries, b.places, b.isBuilt, notes.associateBy { it.entryId }, names.associate { it.cellKey to it.name }, uses, succ)
     }.stateIn(scope, SharingStarted.Eagerly, JournalState())
 
     /** 1 s after the library or the place-names setting last changed: rebuild, then name places. A newer change cancels both. */
@@ -104,16 +115,36 @@ class JournalRepository(
     }
 
     private suspend fun rebuild() {
+        val previous = built.value.entries
         val points = loadPoints()
         val result = withContext(Dispatchers.Default) { Built(JournalBuilder.entries(points), PlaceGrouping.places(points), isBuilt = true) }
         built.value = result
+        carryOver(previous, result.entries)
     }
 
-    /** Every photo and video except screenshots that has a date. */
+    /** When deleting the first photo renames an entry, move its saved title/note to the new id. */
+    private suspend fun carryOver(previous: List<JournalEntry>, current: List<JournalEntry>) {
+        val added = JournalBuilder.successors(previous, current)
+        if (added.isEmpty()) return
+        successors.value = successors.value + added
+        for ((oldId, newId) in added) {
+            val oldNote = dao.note(oldId) ?: continue
+            if (dao.note(newId) == null) dao.upsert(oldNote.copy(entryId = newId))
+            dao.deleteNote(oldId)
+        }
+    }
+
+    /** Camera captures (DCIM/Camera or located, non-screenshot, non-edited) with a date. */
     private suspend fun loadPoints(): List<PhotoPoint> {
-        val items = photos.snapshot.value.all.filter { !it.isScreenshot && it.effectiveDate != null }
-        val located = locations(items)
-        return items.map { PhotoPoint(it.id, Instant.ofEpochMilli(it.effectiveDate!!), located[it.id], it.isFavorite) }
+        val candidates = photos.snapshot.value.all.filter {
+            !it.isScreenshot && it.effectiveDate != null && !JournalBuilder.isEditedName(it.displayName)
+        }
+        val located = locations(candidates)
+        return candidates.mapNotNull { item ->
+            val coord = located[item.id]
+            if (!JournalBuilder.isFromCamera(item, hasLocation = coord != null)) return@mapNotNull null
+            PhotoPoint(item.id, Instant.ofEpochMilli(item.effectiveDate!!), coord, item.isFavorite)
+        }
     }
 
     /** Locations from the Room cache; files are only read for new or modified photos, in batches that survive a cancel. */

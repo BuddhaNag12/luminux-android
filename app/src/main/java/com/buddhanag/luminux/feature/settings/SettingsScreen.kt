@@ -1,7 +1,12 @@
 package com.buddhanag.luminux.feature.settings
 
+import android.content.Context
+import android.content.Intent
 import androidx.activity.compose.LocalActivity
+import androidx.browser.customtabs.CustomTabColorSchemeParams
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.Image
+import androidx.core.net.toUri
 import androidx.datastore.preferences.core.Preferences
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,8 +37,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -74,10 +79,10 @@ fun SettingsScreen() {
     val unlocksPro = isProUnlocked || container.proStore.isTestBuild
     val scope = rememberCoroutineScope()
     var page by rememberSaveable { mutableIntStateOf(0) }
-    var showsBackgroundPicker by rememberSaveable { mutableStateOf(false) }
     var showsTour by rememberSaveable { mutableStateOf(false) }
     var showsColorPicker by rememberSaveable { mutableStateOf(false) }
     val price by container.proStore.price.collectAsStateWithLifecycle()
+    val widgetCollections by container.liveTileStore.collections.collectAsStateWithLifecycle(initialValue = emptyList())
     val activity = LocalActivity.current
     val needsPrivacyOptions by container.adConsent.needsPrivacyOptions.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) {
@@ -89,7 +94,13 @@ fun SettingsScreen() {
         Pivot(
             pages = listOf(
                 PivotPage("general") {
-                    SettingsPage { GeneralPage(settings) { key, value -> scope.launch { repo.set(key, value) } } }
+                    SettingsPage {
+                        GeneralPage(
+                            settings, widgetCollections.size,
+                            onWidgetCollections = { navigator.push(Route.WidgetCollections) },
+                            set = { key, value -> scope.launch { repo.set(key, value) } },
+                        )
+                    }
                 },
                 PivotPage("look") {
                     SettingsPage {
@@ -99,7 +110,7 @@ fun SettingsScreen() {
                             onAccent = { scope.launch { repo.set(SettingsKeys.accent, it.hex) } },
                             onCustomAccent = { if (unlocksPro) showsColorPicker = true else navigator.push(Route.Pro) },
                             onBackground = { scope.launch { repo.set(SettingsKeys.showsHubBackground, it) } },
-                            onBackgroundSource = { showsBackgroundPicker = true },
+                            onBackgroundSource = { navigator.push(Route.BackgroundPicker) },
                         )
                     }
                 },
@@ -120,14 +131,6 @@ fun SettingsScreen() {
             onSelectionChange = { page = it },
             overline = "LUMINUX · SETTINGS",
         )
-        if (showsBackgroundPicker) {
-            BackgroundPicker(
-                settings, unlocksPro,
-                onPick = { source -> scope.launch { repo.setHubBackground(source) }; showsBackgroundPicker = false },
-                onLocked = { showsBackgroundPicker = false; navigator.push(Route.Pro) },
-                onDismiss = { showsBackgroundPicker = false },
-            )
-        }
         if (showsColorPicker) {
             AccentPickerDialog(
                 Accent(settings.accentHex),
@@ -152,7 +155,12 @@ private fun SettingsPage(content: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
-private fun ColumnScope.GeneralPage(s: AppSettings, set: (Preferences.Key<Boolean>, Boolean) -> Unit) {
+private fun ColumnScope.GeneralPage(
+    s: AppSettings,
+    widgetCollectionCount: Int,
+    onWidgetCollections: () -> Unit,
+    set: (Preferences.Key<Boolean>, Boolean) -> Unit,
+) {
     val container = LocalContext.current.container
     val scope = rememberCoroutineScope()
     ToggleRow(
@@ -167,6 +175,18 @@ private fun ColumnScope.GeneralPage(s: AppSettings, set: (Preferences.Key<Boolea
         )
     }
     ToggleRow(
+        "page animation",
+        if (s.animatesPages) s.pageTransition.summary else "Pages swap with a quick fade.",
+        s.animatesPages, { set(SettingsKeys.animatesPages, it) }, Modifier.metroFeather(row = 3).padding(top = 32.dp),
+    )
+    if (s.animatesPages) {
+        Segments(
+            "page animation", PageTransition.entries, s.pageTransition, { it.raw },
+            { scope.launch { container.settings.setPageTransition(it) } },
+            Modifier.metroFeather(row = 3).padding(top = 14.dp),
+        )
+    }
+    ToggleRow(
         "live tiles",
         "Photo tiles flip to a new picture every few seconds. Off, they change each time you come back to the hub.",
         s.animatesLiveTiles, { set(SettingsKeys.animatesLiveTiles, it) }, Modifier.metroFeather(row = 3).padding(top = 32.dp),
@@ -175,12 +195,12 @@ private fun ColumnScope.GeneralPage(s: AppSettings, set: (Preferences.Key<Boolea
         "tile patterns", "The albums and date tiles move slowly.",
         s.animatesTilePatterns, { set(SettingsKeys.animatesTilePatterns, it) }, Modifier.metroFeather(row = 4).padding(top = 32.dp),
     )
-    // iOS uses row 3, which is "live tiles" here; this sits with the other motion rows on the next free line.
-    Segments(
-        "page animation", PageTransition.entries, s.pageTransition, { it.raw },
-        { scope.launch { container.settings.setPageTransition(it) } },
-        Modifier.metroFeather(row = 5).padding(top = 32.dp),
-    )
+    val widgetDetail = when (widgetCollectionCount) {
+        0 -> "Albums and photo sets the Photos widget can show"
+        1 -> "1 album or photo set on the widget"
+        else -> "$widgetCollectionCount albums and photo sets on the widget"
+    }
+    LinkRow("widget collections", widgetDetail, Modifier.metroFeather(row = 5).padding(top = 32.dp), onClick = onWidgetCollections)
     // No "standby" row (Android has no StandBy) and no "live photos" row (v1 drops Live Photos): both would do nothing.
     ToggleRow(
         "place names",
@@ -228,7 +248,7 @@ private fun ColumnScope.LookPage(
                     .semantics { contentDescription = preset.name; this.selected = selected },
                 contentAlignment = Alignment.Center,
             ) {
-                if (selected) Image(MetroIcons.check, null, Modifier.size(16.dp), colorFilter = ColorFilter.tint(Color.White))
+                if (selected) Image(MetroIcons.check, null, Modifier.size(16.dp), colorFilter = ColorFilter.tint(preset.onColor))
             }
         }
         val isCustom = !accent.isPreset
@@ -249,7 +269,7 @@ private fun ColumnScope.LookPage(
             Image(
                 if (unlocksPro) MetroIcons.eyedropper else MetroIcons.lock, null,
                 Modifier.size(if (unlocksPro) 18.dp else 14.dp),
-                colorFilter = ColorFilter.tint(if (isCustom) Color.White else metro.foreground),
+                colorFilter = ColorFilter.tint(if (isCustom) accent.onColor else metro.foreground),
             )
         }
     }
@@ -267,6 +287,15 @@ private fun ColumnScope.LookPage(
     }
 }
 
+private const val PRIVACY_POLICY_URL = "https://github.com/BuddhaNag12/luminux-android/blob/main/PRIVACY.md"
+private const val SUPPORT_URL = "https://github.com/BuddhaNag12/luminux-android/issues"
+private const val SUPPORT_EMAIL = "buddhanag12@gmail.com"
+
+private fun openInAppBrowser(context: Context, url: String, accentArgb: Int) {
+    val scheme = CustomTabColorSchemeParams.Builder().setToolbarColor(accentArgb).build()
+    runCatching { CustomTabsIntent.Builder().setDefaultColorSchemeParams(scheme).build().launchUrl(context, url.toUri()) }
+}
+
 @Composable
 private fun ColumnScope.AboutPage(
     isProUnlocked: Boolean,
@@ -277,11 +306,18 @@ private fun ColumnScope.AboutPage(
     onTour: () -> Unit,
     onAbout: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val accentArgb = LocalMetro.current.accentColor.toArgb()
     ProCard(isProUnlocked, price, onPro, Modifier.metroFeather(row = 1).padding(bottom = 28.dp))
     Column(Modifier.metroFeather(row = 2), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         if (showsPrivacyChoices) LinkRow("ad privacy choices", "What Google may use to pick ads", onClick = onPrivacyChoices)
         LinkRow("take the tour", "What Luminux can do, page by page", onClick = onTour)
         LinkRow("about and licences", "Version, fonts and their licences", onClick = onAbout)
+        LinkRow("privacy policy", "What Luminux and its ads collect") { openInAppBrowser(context, PRIVACY_POLICY_URL, accentArgb) }
+        LinkRow("contact support", "Questions, bugs and ideas on GitHub") { openInAppBrowser(context, SUPPORT_URL, accentArgb) }
+        LinkRow("email support", SUPPORT_EMAIL) {
+            runCatching { context.startActivity(Intent(Intent.ACTION_SENDTO, "mailto:$SUPPORT_EMAIL".toUri())) }
+        }
     }
 }
 
@@ -289,6 +325,7 @@ private fun ColumnScope.AboutPage(
 @Composable
 private fun ProCard(isProUnlocked: Boolean, price: String?, onPro: () -> Unit, modifier: Modifier) {
     val metro = LocalMetro.current
+    val onAccent = metro.onAccent
     if (isProUnlocked) {
         Row(
             modifier.fillMaxWidth().background(metro.chrome).padding(12.dp),
@@ -296,7 +333,7 @@ private fun ProCard(isProUnlocked: Boolean, price: String?, onPro: () -> Unit, m
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(Modifier.size(48.dp).background(metro.accentColor), contentAlignment = Alignment.Center) {
-                Image(MetroIcons.check, null, Modifier.size(22.dp), colorFilter = ColorFilter.tint(Color.White))
+                Image(MetroIcons.check, null, Modifier.size(22.dp), colorFilter = ColorFilter.tint(onAccent))
             }
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 MetroText("pro unlocked", metroFont(20.sp, Semilight))
@@ -313,19 +350,19 @@ private fun ProCard(isProUnlocked: Boolean, price: String?, onPro: () -> Unit, m
                 .semantics { contentDescription = "Luminux Pro" },
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                MetroText("LUMINUX PRO", MetroType.overline, color = Color.White)
+                MetroText("LUMINUX PRO", MetroType.overline, color = onAccent)
                 Spacer(Modifier.weight(1f))
-                Image(MetroIcons.arrowRight, null, Modifier.size(20.dp), colorFilter = ColorFilter.tint(Color.White))
+                Image(MetroIcons.arrowRight, null, Modifier.size(20.dp), colorFilter = ColorFilter.tint(onAccent))
             }
-            MetroText("no ads, more of you", MetroType.section, Modifier.padding(top = 14.dp), color = Color.White)
+            MetroText("no ads, more of you", MetroType.section, Modifier.padding(top = 14.dp), color = onAccent)
             MetroText(
                 "Any accent colour, wide live tiles, unlimited pins, slideshow and editing.", MetroType.caption,
-                Modifier.padding(top = 4.dp), color = Color.White.copy(alpha = 0.85f),
+                Modifier.padding(top = 4.dp), color = onAccent.copy(alpha = 0.85f),
             )
             Spacer(Modifier.height(16.dp))
             MetroText(
                 price?.let { "$it, once. No subscription." } ?: "One payment. No subscription.",
-                metroFont(15.sp, FontWeight.SemiBold), color = Color.White,
+                metroFont(15.sp, FontWeight.SemiBold), color = onAccent,
             )
         }
     }

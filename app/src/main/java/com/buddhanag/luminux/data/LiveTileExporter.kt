@@ -25,6 +25,8 @@ class LiveTileExporter(
     private val store: LiveTileStore,
     /** Hub photo set id -> (title, photo ids), from HubTilesRepository. */
     private val photoSet: (String) -> Pair<String, List<Long>>?,
+    /** Every photo set for the widget catalog, from HubTilesRepository. */
+    private val allPhotoSets: () -> List<TileCollection> = { emptyList() },
 ) {
     private companion object {
         const val SIDE = 600
@@ -33,6 +35,7 @@ class LiveTileExporter(
 
     suspend fun export() {
         val snap = photos.snapshot.value
+        publishCatalog()
         // Recent stays the newest photos; favorites shuffle like collections do.
         store.replaceImages(jpegs(snap.all.take(30)), LiveTileStore.RECENT)
         store.replaceImages(jpegs(snap.favorites.take(500).shuffled()), LiveTileStore.FAVORITES)
@@ -48,6 +51,12 @@ class LiveTileExporter(
         }
         store.setCollections(kept)
         updateWidgets()
+    }
+
+    /** Publishes every album and photo set so the widget configuration screen offers them all. */
+    suspend fun publishCatalog() {
+        val albums = photos.snapshot.value.albums.map { TileCollection.album(it.id, it.title) }
+        store.setCatalog(albums + allPhotoSets())
     }
 
     /** Adds an album or photo set to the widget's choices with its photos ready ("make a widget", spec 10). */

@@ -19,6 +19,7 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.Constraints
+import coil3.SingletonImageLoader
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import com.buddhanag.luminux.data.MediaItem
@@ -61,10 +62,11 @@ internal fun ZoomStandIn(item: MediaItem, from: Rect?, to: Rect?, fraction: Floa
     val context = LocalContext.current
     val tileSide = Thumbnails.requestSide(LocalWindowInfo.current.containerSize.width / GridZoom.DEFAULT_COLUMNS)
     val request = remember(item.thumbKey, tileSide) {
+        val placeholderSide = Thumbnails.cached(SingletonImageLoader.get(context), item)?.second ?: tileSide
         ImageRequest.Builder(context)
             .data(MediaThumb(item.contentUri, STAND_IN_SIDE))
             // The grid's thumbnail is in memory already, so the zoom never starts blank.
-            .placeholderMemoryCacheKey(Thumbnails.memoryKey(item, tileSide))
+            .placeholderMemoryCacheKey(Thumbnails.memoryKey(item, placeholderSide))
             .build()
     }
     val origin = remember { OffsetHolder() }

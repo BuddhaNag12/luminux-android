@@ -111,6 +111,7 @@ import com.buddhanag.luminux.designsystem.Semilight
 import com.buddhanag.luminux.designsystem.metroFeather
 import com.buddhanag.luminux.designsystem.metroFont
 import com.buddhanag.luminux.designsystem.tiltPress
+import com.buddhanag.luminux.designsystem.vanishFlip
 import com.buddhanag.luminux.feature.shell.Route
 import com.buddhanag.luminux.feature.viewer.zoomSource
 import kotlinx.coroutines.coroutineScope
@@ -165,6 +166,7 @@ fun AssetGrid(
     val scope = rememberCoroutineScope()
 
     val snapshot by container.photos.snapshot.collectAsStateWithLifecycle()
+    val vanishingIds by container.photos.vanishingIds.collectAsStateWithLifecycle()
     val items = remember(snapshot, source) { container.photos.items(source) }
     val settings by container.settings.settings.collectAsStateWithLifecycle(initialValue = null)
     val isProUnlocked by container.proStore.isUnlocked.collectAsStateWithLifecycle()
@@ -345,7 +347,7 @@ fun AssetGrid(
                             )
                         }
                         for (slot in rows) key(slot.row) {
-                            GridRow(slot, items, layout, isOverview, selection, controller, source)
+                            GridRow(slot, items, vanishingIds, layout, isOverview, selection, controller, source)
                         }
                     },
                     // The pinch layer stands in for the grid (month titles too) while it's on screen.
@@ -443,6 +445,7 @@ private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.detectPi
 private fun GridRow(
     slot: GridLayout.RowSlot,
     items: List<MediaItem>,
+    vanishingIds: Set<Long>,
     layout: GridLayout,
     isOverview: Boolean,
     selection: SelectionModel,
@@ -467,8 +470,9 @@ private fun GridRow(
             for (i in slot.start until min(slot.end, items.size)) {
                 val item = items[i]
                 key(item.id) {
+                    val gone = item.id in vanishingIds
                     if (isOverview) {
-                        AssetThumbnail(item, sidePx, showsBadge = false)
+                        AssetThumbnail(item, sidePx, Modifier.vanishFlip(gone), showsBadge = false)
                     } else {
                         PhotoTile(
                             item,
@@ -491,7 +495,7 @@ private fun GridRow(
                                     }
                                 }
                             },
-                            modifier = Modifier.metroFeather(row = slot.row, column = i - slot.start),
+                            modifier = Modifier.metroFeather(row = slot.row, column = i - slot.start).vanishFlip(gone),
                         )
                     }
                 }
@@ -690,7 +694,7 @@ private fun ProNote(onClick: () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Image(MetroIcons.lock, null, Modifier.size(14.dp), colorFilter = ColorFilter.tint(Color.White))
-        MetroText("Grid sizes come with Luminux Pro. Tap to see what it adds.", metroFont(15.sp, Semilight), color = Color.White)
+        Image(MetroIcons.lock, null, Modifier.size(14.dp), colorFilter = ColorFilter.tint(metro.onAccent))
+        MetroText("Grid sizes come with Luminux Pro. Tap to see what it adds.", metroFont(15.sp, Semilight), color = metro.onAccent)
     }
 }

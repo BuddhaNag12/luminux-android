@@ -37,6 +37,7 @@ class LiveTileStore(private val filesDir: File, private val store: DataStore<Pre
         const val RECENT = "recent"
         const val FAVORITES = "favorites"
         private val collectionsKey = stringPreferencesKey("collections")
+        private val catalogKey = stringPreferencesKey("catalog")
         private val serializer = ListSerializer(TileCollection.serializer())
     }
 
@@ -44,8 +45,17 @@ class LiveTileStore(private val filesDir: File, private val store: DataStore<Pre
         p[collectionsKey]?.let { runCatching { Json.decodeFromString(serializer, it) }.getOrNull() }.orEmpty()
     }
 
+    /** Every album and photo set, so the widget configure screen can offer them all. */
+    val catalog: Flow<List<TileCollection>> = store.data.map { p ->
+        p[catalogKey]?.let { runCatching { Json.decodeFromString(serializer, it) }.getOrNull() }.orEmpty()
+    }
+
     suspend fun setCollections(list: List<TileCollection>) {
         store.edit { it[collectionsKey] = Json.encodeToString(serializer, list) }
+    }
+
+    suspend fun setCatalog(list: List<TileCollection>) {
+        store.edit { it[catalogKey] = Json.encodeToString(serializer, list) }
     }
 
     /** [name]: [RECENT], [FAVORITES] or a [TileCollection.folderName]. */

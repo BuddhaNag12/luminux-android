@@ -56,10 +56,11 @@ internal fun AmbientTile(pattern: AmbientPattern, animates: Boolean, modifier: M
             }
         }
     }
-    Canvas(modifier.fillMaxSize().background(LocalMetro.current.accentColor).clearAndSetSemantics {}) {
+    val metro = LocalMetro.current
+    Canvas(modifier.fillMaxSize().background(metro.accentColor).clearAndSetSemantics {}) {
         when (pattern) {
-            AmbientPattern.Albums -> drawAlbums(time)
-            AmbientPattern.Date -> drawMonth(time, LocalDate.now())
+            AmbientPattern.Albums -> drawAlbums(time, metro.onAccent)
+            AmbientPattern.Date -> drawMonth(time, LocalDate.now(), metro.onAccent)
         }
     }
 }
@@ -73,7 +74,7 @@ private const val FRAME_MS = 33L
 private fun clock() = (System.currentTimeMillis() % 1_540_000L) / 1000.0
 
 /** Three translucent squares, stacked like album covers, drifting around one another. */
-private fun DrawScope.drawAlbums(time: Double) {
+private fun DrawScope.drawAlbums(time: Double, onAccent: Color) {
     val side = min(size.width, size.height) * 0.42f
     val step = side * 0.2f
     val drift = side * 0.08f
@@ -86,13 +87,13 @@ private fun DrawScope.drawAlbums(time: Double) {
         val y = center.y - back * step + step + drift * sin(phase).toFloat()
         val tilt = 4 * sin(time * 2 * PI / 11 + index).toFloat()
         rotate(tilt, Offset(x, y)) {
-            drawRect(Color.White.copy(alpha = opacities[index]), Offset(x - side / 2, y - side / 2), Size(side, side))
+            drawRect(onAccent.copy(alpha = opacities[index]), Offset(x - side / 2, y - side / 2), Size(side, side))
         }
     }
 }
 
 /** This month as squares: past days brighter than the ones ahead, today solid and pulsing, a glow sweeping through. */
-private fun DrawScope.drawMonth(time: Double, today: LocalDate) {
+private fun DrawScope.drawMonth(time: Double, today: LocalDate, onAccent: Color) {
     // A small tile only has room for the day number.
     if (min(size.width, size.height) <= 120.dp.toPx()) return
     val days = today.lengthOfMonth()
@@ -118,12 +119,12 @@ private fun DrawScope.drawMonth(time: Double, today: LocalDate) {
         val side = cell - gap
         if (day == today0) {
             val grown = side * pulse
-            drawRect(Color.White, topLeft - Offset((grown - side) / 2, (grown - side) / 2), Size(grown, grown))
+            drawRect(onAccent, topLeft - Offset((grown - side) / 2, (grown - side) / 2), Size(grown, grown))
             continue
         }
         // A glow sweeps through the month every 10 s.
         val wave = max(0.0, cos(2 * PI * (time / 10 - day.toDouble() / days)))
         val base = if (day < today0) 0.24 else 0.12
-        drawRect(Color.White.copy(alpha = (base + 0.18 * wave.pow(6)).toFloat()), topLeft, Size(side, side))
+        drawRect(onAccent.copy(alpha = (base + 0.18 * wave.pow(6)).toFloat()), topLeft, Size(side, side))
     }
 }

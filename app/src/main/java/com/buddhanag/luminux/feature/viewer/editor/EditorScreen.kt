@@ -96,11 +96,13 @@ import com.buddhanag.luminux.designsystem.AppBarMenuItem
 import com.buddhanag.luminux.designsystem.Feather
 import com.buddhanag.luminux.designsystem.LocalMetro
 import com.buddhanag.luminux.designsystem.LocalReduceMotion
+import com.buddhanag.luminux.designsystem.LocalSplitY
 import com.buddhanag.luminux.designsystem.MetroAppBarHost
 import com.buddhanag.luminux.designsystem.MetroDial
 import com.buddhanag.luminux.designsystem.MetroIcons
 import com.buddhanag.luminux.designsystem.MetroMetrics
 import com.buddhanag.luminux.designsystem.MetroMotion
+import com.buddhanag.luminux.designsystem.MetroProgress
 import com.buddhanag.luminux.designsystem.MetroText
 import com.buddhanag.luminux.designsystem.MetroType
 import com.buddhanag.luminux.designsystem.Semilight
@@ -109,7 +111,6 @@ import com.buddhanag.luminux.designsystem.dialText
 import com.buddhanag.luminux.designsystem.dialValue
 import com.buddhanag.luminux.designsystem.metroFont
 import com.buddhanag.luminux.designsystem.tiltPress
-import com.buddhanag.luminux.feature.viewer.Spinner
 import com.buddhanag.luminux.feature.viewer.ViewerIcons
 import com.buddhanag.luminux.feature.viewer.swallowTouches
 import kotlinx.coroutines.Dispatchers
@@ -158,8 +159,7 @@ private data class RenderKey(val recipe: EditRecipe, val includesCrop: Boolean, 
 internal fun EditorScreen(
     item: MediaItem,
     onClose: () -> Unit,
-    // shortcut: spec 12G provides splitY (from WindowInfoTracker's FoldingFeature); until then the editor never splits.
-    splitY: Dp? = null,
+    splitY: Dp? = LocalSplitY.current,
 ) {
     val metro = LocalMetro.current
     val reduceMotion = LocalReduceMotion.current
@@ -385,7 +385,7 @@ internal fun EditorScreen(
                     }
                 }
                 couldNotOpen -> MetroText("Couldn't open this photo for editing.", MetroType.body, color = metro.secondary)
-                else -> Spinner()
+                else -> MetroProgress(Modifier.padding(horizontal = 32.dp))
             }
             AnimatedVisibility(
                 swipeStart != null && active != null, Modifier.align(Alignment.TopCenter).padding(top = 8.dp),
@@ -590,9 +590,9 @@ internal fun EditorScreen(
         }
         if (isSaving) {
             Box(Modifier.fillMaxSize().background(metro.background.copy(alpha = 0.6f)).pointerInput(Unit) { swallowTouches() }, contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Spinner()
-                    MetroText("saving", MetroType.body, Modifier.padding(top = 8.dp))
+                Column(Modifier.padding(horizontal = 32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    MetroProgress()
+                    MetroText("saving", MetroType.body, Modifier.padding(top = 12.dp))
                 }
             }
         }
@@ -638,7 +638,7 @@ private fun Tile(
             .padding(8.dp),
         verticalArrangement = Arrangement.spacedBy(spacing),
     ) {
-        content(if (isSelected) Color.White else metro.foreground)
+        content(if (isSelected) metro.onAccent else metro.foreground)
     }
 }
 

@@ -183,7 +183,12 @@ val LocalFeatherPage = compositionLocalOf<FeatherPage?> { null }
 
 /** Drives the feathered items inside: they turn in once on appear, then follow [resting]. */
 @Composable
-fun FeatherScope(modifier: Modifier = Modifier, resting: FeatherState = FeatherState.Shown, content: @Composable () -> Unit) {
+fun FeatherScope(
+    modifier: Modifier = Modifier,
+    resting: FeatherState = FeatherState.Shown,
+    animated: Boolean = true,
+    content: @Composable () -> Unit,
+) {
     var context by remember { mutableStateOf(FeatherContext(FeatherState.Below, FeatherState.Below)) }
     var appeared by remember { mutableStateOf(false) }
     fun move(to: FeatherState) {
@@ -196,10 +201,22 @@ fun FeatherScope(modifier: Modifier = Modifier, resting: FeatherState = FeatherS
         move(resting)
     }
     LaunchedEffect(resting) { if (appeared) move(resting) }
+    val expandedWidth = LocalExpandedWidth.current
+    val reduceMotion = LocalReduceMotion.current
+    var lastExpanded by remember { mutableStateOf(expandedWidth) }
+    LaunchedEffect(expandedWidth) {
+        if (expandedWidth == lastExpanded) return@LaunchedEffect
+        lastExpanded = expandedWidth
+        if (!appeared || !animated || reduceMotion || resting != FeatherState.Shown) return@LaunchedEffect
+        context = FeatherContext(FeatherState.Below, FeatherState.Below)
+        delay(16)
+        move(resting)
+    }
     // Backgrounds and chrome that don't feather appear as the first line starts turning; a zooming page waited already.
-    val delay = if (LocalFeatherStyle.current == FeatherStyle.Zoom) 0 else (Feather.ENTER_BASE_DELAY * 1000).roundToInt()
-    val alpha by animateFloatAsState(if (appeared) 1f else 0f, tween(80, delay, LinearEasing), label = "featherScope")
-    CompositionLocalProvider(LocalFeather provides if (LocalReduceMotion.current) FeatherContext() else context) {
+    val effectiveAnimated = animated && !LocalReduceMotion.current
+    val delay = if (!effectiveAnimated || LocalFeatherStyle.current == FeatherStyle.Zoom) 0 else (Feather.ENTER_BASE_DELAY * 1000).roundToInt()
+    val alpha by animateFloatAsState(if (appeared || !effectiveAnimated) 1f else 0f, tween(80, delay, LinearEasing), label = "featherScope")
+    CompositionLocalProvider(LocalFeather provides if (!effectiveAnimated) FeatherContext() else context) {
         Box(modifier.graphicsLayer { this.alpha = alpha }) { content() }
     }
 }
@@ -242,7 +259,9 @@ fun Modifier.metroFeather(row: Int, column: Int = 0): Modifier = composed {
     )
     var left by remember { mutableFloatStateOf(0f) }
     val item = remember { FeatherPage() }
-    val distancePx = with(LocalDensity.current) { Feather.cameraDistance.toPx() }
+    val density = LocalDensity.current
+    val distancePx = with(density) { Feather.cameraDistance.toPx() }
+    val foldXPx = with(density) { LocalFoldX.current?.toPx() }
     val slidesIn = visibleRow == 0
     this
         .onGloballyPositioned {
@@ -269,7 +288,7 @@ fun Modifier.metroFeather(row: Int, column: Int = 0): Modifier = composed {
         .perspectiveRotation(
             { if (forward) (if (slidesIn) -55f else -35f) * max(-out, 0f) else angle },
             axisX = if (forward) (if (slidesIn) 0.2f else 0.6f) else 0f, axisY = 1f,
-            origin = { if (forward) TransformOrigin.Center else TransformOrigin(-left / max(size.width, 1f), 0.5f) },
+            origin = { if (forward) TransformOrigin.Center else TransformOrigin(FoldGeometry.turnstileOriginX(left, size.width, foldXPx), 0.5f) },
             perspective = 0.6f,
             fixedDistancePx = if (forward) null else distancePx,
         )

@@ -1,9 +1,14 @@
 package com.buddhanag.luminux.designsystem
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import com.buddhanag.luminux.data.PhotoRepository
 import kotlin.math.hypot
 import kotlin.math.max
 
@@ -39,6 +44,28 @@ fun Modifier.perspectiveRotation(
     rotationY = ROTATION_SIGN * angle * axisY / length
     cameraDistance = cameraDistanceFor(fixedDistancePx ?: (max(size.width, size.height, 1f) / perspective))
     transformOrigin = origin()
+}
+
+/**
+ * Deleted photo folding out on its left edge (right edge swinging toward the viewer) and fading over 300 ms before
+ * leaving the library (`VanishFlip`). With Reduce Motion it fades without turning.
+ */
+fun Modifier.vanishFlip(isGone: Boolean): Modifier = composed {
+    val reduceMotion = LocalReduceMotion.current
+    val progress by animateFloatAsState(
+        if (isGone) 1f else 0f,
+        tween(PhotoRepository.VANISH_DURATION_MS, easing = MetroMotion.EaseIn),
+        label = "vanishFlip",
+    )
+    val p = if (isGone) progress else 0f
+    this
+        .perspectiveRotation(
+            degrees = { if (reduceMotion || p == 0f) 0f else -70f * p },
+            axisY = 1f,
+            origin = { TransformOrigin(0f, 0.5f) },
+            perspective = 0.6f,
+        )
+        .graphicsLayer { if (p > 0f) alpha = 1f - p }
 }
 
 private fun max(a: Float, b: Float, c: Float) = max(max(a, b), c)

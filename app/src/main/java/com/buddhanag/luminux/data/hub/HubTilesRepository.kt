@@ -92,6 +92,7 @@ class HubTilesRepository(private val dao: HubDao, scope: CoroutineScope, io: Cor
     fun unpin(kind: HubTileKind) = change { it.unpin(kind) }
     fun move(kind: HubTileKind, to: Int) = change { it.move(kind, to) }
     fun resize(kind: HubTileKind) = change { it.resize(kind) }
+    fun resetLayout() = change { it.resetLayout() }
     fun rename(set: String, title: String) = change { it.rename(set, title) }
     fun remove(ids: Set<Long>, fromSet: String) = change { it.remove(ids, fromSet) }
 

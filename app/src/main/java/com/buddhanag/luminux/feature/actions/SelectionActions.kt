@@ -22,8 +22,16 @@ fun selectionActionButtons(selection: SelectionModel, onAddToAlbum: (List<MediaI
     val context = LocalContext.current
     val photos = context.container.photos
     val currentSelection by rememberUpdatedState(selection)
-    val consent = rememberLauncherForActivityResult(StartIntentSenderForResult()) {
+    val favoriteConsent = rememberLauncherForActivityResult(StartIntentSenderForResult()) {
         if (it.resultCode == Activity.RESULT_OK) currentSelection.end()
+    }
+    val trashConsent = rememberLauncherForActivityResult(StartIntentSenderForResult()) {
+        if (it.resultCode == Activity.RESULT_OK) {
+            photos.commitVanish()
+            currentSelection.end()
+        } else {
+            photos.cancelVanish()
+        }
     }
     val hasSelection = selection.selected.isNotEmpty()
     fun withItems(action: (List<MediaItem>) -> Unit) {
@@ -31,8 +39,13 @@ fun selectionActionButtons(selection: SelectionModel, onAddToAlbum: (List<MediaI
     }
     return listOf(
         AppBarButton("share", ActionIcons.share, hasSelection) { withItems { context.startActivity(photos.shareIntent(it)) } },
-        AppBarButton("favorite", ActionIcons.favorite, hasSelection) { withItems { consent.launch(photos.favoriteRequest(it, true)) } },
+        AppBarButton("favorite", ActionIcons.favorite, hasSelection) { withItems { favoriteConsent.launch(photos.favoriteRequest(it, true)) } },
         AppBarButton("add", ActionIcons.add, hasSelection) { withItems(onAddToAlbum) },
-        AppBarButton("delete", ActionIcons.delete, hasSelection) { withItems { consent.launch(photos.trashRequest(it)) } },
+        AppBarButton("delete", ActionIcons.delete, hasSelection) {
+            withItems {
+                photos.beginPendingDelete(it.map { item -> item.id }.toSet())
+                trashConsent.launch(photos.trashRequest(it))
+            }
+        },
     )
 }

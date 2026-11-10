@@ -14,6 +14,8 @@ sealed interface Route {
     data class Collection(val page: Int, val showsJumpList: Boolean = false) : Route
     data class Album(val id: String) : Route
     data object Settings : Route
+    data object BackgroundPicker : Route
+    data object WidgetCollections : Route
     data object Pro : Route
     data object About : Route
     data object Journal : Route

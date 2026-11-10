@@ -144,6 +144,7 @@ dependencies {
     implementation(libs.androidx.browser)
     implementation(libs.glance.appwidget)
     implementation(libs.work.runtime)
+    implementation(libs.androidx.window)
     // Installs the baseline profile on devices that don't get it from Play, and lets the generator read it back.
     implementation(libs.androidx.profileinstaller)
     baselineProfile(project(":baselineprofile"))

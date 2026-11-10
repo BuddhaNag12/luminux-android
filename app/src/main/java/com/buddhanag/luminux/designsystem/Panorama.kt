@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -130,7 +131,24 @@ fun Panorama(
 
     BoxWithConstraints(modifier.fillMaxSize().background(metro.background)) {
         val screenWidth = constraints.maxWidth.toFloat()
-        val math = PanoramaMath(screenWidth, with(density) { PanoramaMath.PEEK.toPx() }, panels.size, startPanel, reduceMotion)
+        val expandedWidth = LocalExpandedWidth.current
+        val foldXPx = with(density) { LocalFoldX.current?.toPx() }
+        val peekPx = with(density) { PanoramaMath.PEEK.toPx() }
+        val math = PanoramaMath(
+            screenWidth,
+            panoramaEffectivePeek(screenWidth, peekPx, expandedWidth, foldXPx),
+            panels.size,
+            startPanel,
+            reduceMotion,
+        )
+        var previousPanelWidth by remember { mutableFloatStateOf(0f) }
+        val settledPage by rememberUpdatedState(pager.settledPage)
+        LaunchedEffect(math.panelWidth) {
+            if (previousPanelWidth > 0f && previousPanelWidth != math.panelWidth && panels.isNotEmpty()) {
+                pager.scrollToPage(settledPage.coerceIn(0, panels.lastIndex))
+            }
+            previousPanelWidth = math.panelWidth
+        }
         val margin = with(density) { (MetroMetrics.margin + 4.dp).toPx() }
         val scrollX = { (pager.currentPage + pager.currentPageOffsetFraction) * math.panelWidth }
 
@@ -186,17 +204,33 @@ fun Panorama(
                 CompositionLocalProvider(LocalFeather provides feather) {
                     // The panel on screen draws over its neighbours: the pager draws later panels on top, which hid the
                     // hub's tile edit buttons where they reach past the panel's edge into the next one.
-                    Box(Modifier.fillMaxSize().zIndex(if (page == pager.currentPage) 1f else 0f)) { panels[page]() }
+                    val visibleZ = when {
+                        page == pager.currentPage -> 2f
+                        expandedWidth && page == pager.currentPage + 1 -> 1f
+                        else -> 0f
+                    }
+                    Box(Modifier.fillMaxSize().zIndex(visibleZ)) { panels[page]() }
                 }
             }
         }
     }
 }
 
+internal fun panoramaEffectivePeek(
+    screenWidth: Float,
+    peek: Float,
+    expandedWidth: Boolean,
+    foldX: Float?,
+): Float {
+    if (!expandedWidth) return peek
+    val panelWidth = if (foldX != null && foldX > screenWidth / 3f) foldX else (screenWidth - peek) / 2f
+    return screenWidth - panelWidth
+}
+
 @Composable
 private fun PanoramaTitle(text: String, modifier: Modifier, hidden: Boolean) {
     MetroText(
-        text, MetroType.panorama,
+        text, if (LocalExpandedWidth.current) MetroType.panoramaWide else MetroType.panorama,
         modifier
             .padding(start = MetroMetrics.margin + 4.dp)
             .then(if (hidden) Modifier.clearAndSetSemantics {} else Modifier.semantics { heading() }),

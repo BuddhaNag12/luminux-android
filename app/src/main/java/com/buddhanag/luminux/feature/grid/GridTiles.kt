@@ -42,9 +42,9 @@ fun SelectionBox(isSelected: Boolean, modifier: Modifier = Modifier, isMixed: Bo
         contentAlignment = Alignment.Center,
     ) {
         if (isSelected) {
-            Image(MetroIcons.check, null, Modifier.size(15.dp), colorFilter = ColorFilter.tint(Color.White))
+            Image(MetroIcons.check, null, Modifier.size(15.dp), colorFilter = ColorFilter.tint(metro.onAccent))
         } else if (isMixed) {
-            Box(Modifier.size(10.dp, 2.dp).background(Color.White))
+            Box(Modifier.size(10.dp, 2.dp).background(metro.onAccent))
         }
     }
 }

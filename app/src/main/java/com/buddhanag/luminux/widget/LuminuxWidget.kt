@@ -58,6 +58,7 @@ import com.buddhanag.luminux.MainActivity
 import com.buddhanag.luminux.R
 import com.buddhanag.luminux.container
 import com.buddhanag.luminux.data.LiveTileStore
+import com.buddhanag.luminux.designsystem.AccentContrast
 import com.buddhanag.luminux.designsystem.TileShuffle
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
@@ -107,6 +108,7 @@ private fun Tile(
     val open = Intent(Intent.ACTION_VIEW, link.toUri(), context, MainActivity::class.java)
     var peeking = false
 
+    val onAccent = AccentContrast.onAccent(accentHex)
     Box(
         GlanceModifier.fillMaxSize()
             .background(if (face == Face.Photos) photoBackground else Color(0xFF000000.toInt() or accentHex))
@@ -116,10 +118,13 @@ private fun Tile(
         contentAlignment = Alignment.BottomStart,
     ) {
         when (face) {
-            Face.Locked -> LockedFace()
-            Face.NeedsCollection -> Note("Touch and hold the tile, then tap Settings to choose a collection.")
+            Face.Locked -> LockedFace(onAccent)
+            Face.NeedsCollection -> Note("Touch and hold the tile, then tap Settings to choose a collection.", onAccent)
             Face.Empty -> Box(GlanceModifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Image(ImageProvider(R.drawable.ic_widget_photos), null, GlanceModifier.size(40.dp), colorFilter = ColorFilter.tint(white))
+                Image(
+                    ImageProvider(R.drawable.ic_widget_photos), null, GlanceModifier.size(40.dp),
+                    colorFilter = ColorFilter.tint(ColorProvider(onAccent)),
+                )
             }
             Face.Photos -> {
                 val names = pool.map { it.name }
@@ -133,7 +138,7 @@ private fun Tile(
             }
         }
         // The peek panel shows the title itself.
-        if (face != Face.Locked && !peeking) Label(config.title)
+        if (face != Face.Locked && !peeking) Label(config.title, if (face == Face.Photos) Color.White else onAccent)
         // Not on the small tile: there a tap anywhere opens the app.
         if (face == Face.Photos && kind != TileKind.Small) ShuffleButton()
     }
@@ -237,12 +242,12 @@ private fun decodePhoto(file: File, small: Boolean): Bitmap? {
 }
 
 /** RemoteViews can't load the bundled Selawik, so the system's light sans stands in. */
-private fun metro(alpha: Float = 1f, size: Int = 15) =
-    TextStyle(color = ColorProvider(Color.White.copy(alpha = alpha)), fontSize = size.sp, fontFamily = FontFamily("sans-serif-light"))
+private fun metro(color: Color = Color.White, alpha: Float = 1f, size: Int = 15) =
+    TextStyle(color = ColorProvider(color.copy(alpha = alpha)), fontSize = size.sp, fontFamily = FontFamily("sans-serif-light"))
 
 @Composable
-private fun Label(title: String) {
-    Text(title, GlanceModifier.padding(12.dp), metro(), maxLines = 1)
+private fun Label(title: String, color: Color = Color.White) {
+    Text(title, GlanceModifier.padding(12.dp), metro(color), maxLines = 1)
 }
 
 /**
@@ -255,12 +260,13 @@ private fun Label(title: String) {
 private fun Peek(title: String, kind: TileKind, accentHex: Int, photos: @Composable () -> Unit) {
     val locale = LocalContext.current.resources.configuration.locales[0]
     val date = DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, "EEEEdMMMM"), locale).format(LocalDate.now())
+    val onAccent = AccentContrast.onAccent(accentHex)
     Column(GlanceModifier.fillMaxSize()) {
         Box(GlanceModifier.defaultWeight().fillMaxWidth()) { photos() }
         Column(GlanceModifier.defaultWeight().fillMaxWidth().background(Color(0xFF000000.toInt() or accentHex)).padding(12.dp)) {
-            Text(title, style = metro(size = if (kind == TileKind.Small) 22 else 28), maxLines = 1)
+            Text(title, style = metro(onAccent, size = if (kind == TileKind.Small) 22 else 28), maxLines = 1)
             Spacer(GlanceModifier.height(2.dp))
-            Text(date.lowercase(locale), style = metro(0.8f, size = 13), maxLines = 1)
+            Text(date.lowercase(locale), style = metro(onAccent, 0.8f, size = 13), maxLines = 1)
         }
     }
 }
@@ -281,17 +287,17 @@ private fun ShuffleButton() {
 }
 
 @Composable
-private fun Note(text: String) {
-    Box(GlanceModifier.fillMaxSize().padding(12.dp), contentAlignment = Alignment.TopStart) { Text(text, style = metro()) }
+private fun Note(text: String, onAccent: Color) {
+    Box(GlanceModifier.fillMaxSize().padding(12.dp), contentAlignment = Alignment.TopStart) { Text(text, style = metro(onAccent)) }
 }
 
 @Composable
-private fun LockedFace() {
+private fun LockedFace(onAccent: Color) {
     Column(GlanceModifier.fillMaxSize().padding(12.dp)) {
-        Image(ImageProvider(R.drawable.ic_widget_lock), null, GlanceModifier.size(22.dp), colorFilter = ColorFilter.tint(white))
+        Image(ImageProvider(R.drawable.ic_widget_lock), null, GlanceModifier.size(22.dp), colorFilter = ColorFilter.tint(ColorProvider(onAccent)))
         Spacer(GlanceModifier.defaultWeight())
-        Text("Wide tiles come with Luminux Pro. Tap to see what it adds.", style = metro())
+        Text("Wide tiles come with Luminux Pro. Tap to see what it adds.", style = metro(onAccent))
         Spacer(GlanceModifier.height(6.dp))
-        Text("photos", style = metro(0.7f))
+        Text("photos", style = metro(onAccent, 0.7f))
     }
 }

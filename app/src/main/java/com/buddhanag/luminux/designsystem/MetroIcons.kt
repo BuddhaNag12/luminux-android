@@ -22,6 +22,12 @@ object MetroIcons {
         moveTo(15f, 5f); lineTo(17f, 3f); arcTo(2f, 2f, 0f, false, true, 21f, 7f); lineTo(19f, 9f)
     }
     val arrowRight = icon("arrow.right") { moveTo(4f, 12f); lineTo(20f, 12f); moveTo(14f, 6f); lineTo(20f, 12f); lineTo(14f, 18f) }
+    val arrowLeft = icon("arrow.left") { moveTo(20f, 12f); lineTo(4f, 12f); moveTo(10f, 6f); lineTo(4f, 12f); lineTo(10f, 18f) }
+    val photo = icon("photo") {
+        moveTo(3f, 5f); lineTo(21f, 5f); lineTo(21f, 19f); lineTo(3f, 19f); close()
+        moveTo(3f, 16f); lineTo(9f, 11f); lineTo(13f, 15f); lineTo(16f, 12.5f); lineTo(21f, 16.5f)
+        moveTo(17f, 8f); arcTo(1.5f, 1.5f, 0f, true, true, 17f, 8.01f)
+    }
     /** `square.stack.3d.up`. */
     val stack = icon("square.stack.3d.up") {
         moveTo(12f, 3f); lineTo(21f, 7.5f); lineTo(12f, 12f); lineTo(3f, 7.5f); close()

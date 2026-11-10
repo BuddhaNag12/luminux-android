@@ -18,10 +18,21 @@ data class ExifSummary(
 )
 
 interface PhotoRepository {
+    companion object {
+        const val VANISH_DURATION_MS = 300
+    }
+
     val access: StateFlow<MediaAccess>
     val snapshot: StateFlow<LibrarySnapshot>
+    /** Photos folding away after a confirmed delete while reloads are held back for the animation. */
+    val vanishingIds: StateFlow<Set<Long>>
     /** `ACCESS_MEDIA_LOCATION`; never affects [MediaAccess.canRead]. Needed for location, EXIF GPS copy and Places. */
     val hasMediaLocation: Boolean
+
+    /** Hold library reloads from the moment a trash consent dialog opens so the delete animation can play first. */
+    fun beginPendingDelete(ids: Set<Long>) {}
+    fun commitVanish() {}
+    fun cancelVanish() {}
 
     /** Re-reads the permissions. The app calls it on every activity resume; pass the activity to learn "can ask again". */
     fun refreshAccess(activity: Activity? = null)

@@ -33,6 +33,6 @@ fun MetroButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier
             .padding(horizontal = 20.dp),
         contentAlignment = Alignment.Center,
     ) {
-        MetroText(text, metroFont(17.sp, Semilight), color = if (pressed) Color.White else metro.foreground)
+        MetroText(text, metroFont(17.sp, Semilight), color = if (pressed) metro.onAccent else metro.foreground)
     }
 }

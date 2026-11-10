@@ -57,13 +57,14 @@ import kotlin.math.roundToInt
 fun MetroStack(
     navigator: Navigator,
     transition: PageTransition,
+    animatesPages: Boolean = true,
     root: @Composable () -> Unit,
     destination: @Composable (Route) -> Unit,
 ) {
-    val reduceMotion = LocalReduceMotion.current
+    val skipAnimations = LocalReduceMotion.current || !animatesPages
     val scope = rememberCoroutineScope()
-    BackHandler(enabled = navigator.path.isNotEmpty()) { scope.launch { navigator.pop(reduceMotion) } }
-    val zooms = transition == PageTransition.ZOOM && !reduceMotion
+    BackHandler(enabled = navigator.path.isNotEmpty()) { scope.launch { navigator.pop(skipAnimations) } }
+    val zooms = transition == PageTransition.ZOOM && !skipAnimations
     val count = navigator.path.size
     // Pages deeper than this wait, unbuilt, for the page they opened from to scatter away first (zoom only): building
     // one (a photo grid, say) while the tiles flew out dropped frames on iOS.
@@ -89,10 +90,10 @@ fun MetroStack(
                 .padding(top = (MIN_TOP_INSET - statusBar).coerceAtLeast(0.dp))
                 .onSizeChanged { screen = it.toSize() },
         ) {
-            StackPage(navigator, depth = 0, zooms) { root() }
+            StackPage(navigator, depth = 0, zooms, animatesPages) { root() }
             navigator.path.forEachIndexed { index, route ->
                 if (!zooms || index + 1 <= enteredDepth) {
-                    key(index, route) { StackPage(navigator, depth = index + 1, zooms) { destination(route) } }
+                    key(index, route) { StackPage(navigator, depth = index + 1, zooms, animatesPages) { destination(route) } }
                 }
             }
         }
@@ -106,7 +107,7 @@ private val MIN_TOP_INSET = 20.dp
 private const val ZOOMED_IN = 0.9f
 
 @Composable
-private fun StackPage(navigator: Navigator, depth: Int, zooms: Boolean, content: @Composable () -> Unit) {
+private fun StackPage(navigator: Navigator, depth: Int, zooms: Boolean, animatesPages: Boolean, content: @Composable () -> Unit) {
     val top = navigator.path.size
     val isTop = depth == top
     val isUnder = depth == top - 1
@@ -118,10 +119,12 @@ private fun StackPage(navigator: Navigator, depth: Int, zooms: Boolean, content:
         else -> FeatherState.Above
     }
     val isCovered = itemState == FeatherState.Above
+    val skipPageAnimations = LocalReduceMotion.current || !animatesPages
     // Leaving and covered pages keep their background until their items have moved away.
     val opacity by animateFloatAsState(
         targetValue = if (isTop) (if (isLeaving) 0f else 1f) else if (isUnder && navigator.isLeaving) 1f else 0f,
         animationSpec = when {
+            skipPageAnimations -> MetroMotion.fade()
             isLeaving -> tween(120, ((Feather.exitTime - 0.12) * 1000).roundToInt(), MetroMotion.EaseIn)
             // A zooming page's background goes as its items finish scattering, leaving a moment of dark, as on Windows.
             isCovered -> tween(100, if (zooms) 300 else (Feather.COVER_FADE_DELAY * 1000).roundToInt(), MetroMotion.EaseIn)
@@ -155,6 +158,7 @@ private fun StackPage(navigator: Navigator, depth: Int, zooms: Boolean, content:
                 // The space scattering items fly out from the centre of.
                 .onPlaced { page.coordinates = it },
             resting = itemState,
+            animated = animatesPages,
         ) { content() }
     }
 }

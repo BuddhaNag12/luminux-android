@@ -35,6 +35,7 @@ import com.buddhanag.luminux.designsystem.MetroAppBarHost
 import com.buddhanag.luminux.designsystem.MetroMetrics
 import com.buddhanag.luminux.designsystem.MetroText
 import com.buddhanag.luminux.designsystem.MetroType
+import com.buddhanag.luminux.designsystem.OverflowingTitle
 import com.buddhanag.luminux.designsystem.metroFeather
 import com.buddhanag.luminux.feature.actions.ActionIcons
 import com.buddhanag.luminux.data.hub.HubTileKind
@@ -115,16 +116,11 @@ fun AlbumScreen(id: String) {
                     MetroType.overline,
                     Modifier.metroFeather(row = 0).padding(start = MetroMetrics.margin + 4.dp),
                 )
-                Box(Modifier.fillMaxWidth().clipToBounds().padding(bottom = 8.dp)) {
-                    MetroText(
-                        title, MetroType.title,
-                        Modifier
-                            .metroFeather(row = 0)
-                            .wrapContentWidth(Alignment.Start, unbounded = true)
-                            .padding(start = MetroMetrics.margin + 1.dp),
-                        maxLines = 1, softWrap = false,
-                    )
-                }
+                OverflowingTitle(
+                    title,
+                    Modifier.padding(bottom = 8.dp),
+                    Modifier.metroFeather(row = 0).padding(start = MetroMetrics.margin + 1.dp),
+                )
                 // Runs under the app bar; the last row can still scroll clear of it.
                 AssetGrid(AssetSource.Album(id), selection, emptyMessage = "This album is empty.", contentPadding = padding)
             }

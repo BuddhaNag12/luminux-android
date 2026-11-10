@@ -15,10 +15,29 @@ import java.util.Locale
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
+/** Which text colour reads on an accent, shared by the app and the widget (AccentContrast.swift). */
+object AccentContrast {
+    /**
+     * True when black text reads better than white on the colour. Past a relative luminance of 0.179 black wins, and
+     * at that point both reach about 4.6:1, so every accent clears the 4.5:1 that body text needs.
+     */
+    fun needsDarkText(hex: Int): Boolean {
+        val channels = listOf((hex shr 16) and 0xFF, (hex shr 8) and 0xFF, hex and 0xFF).map { byte ->
+            val value = byte / 255.0
+            if (value <= 0.04045) value / 12.92 else ((value + 0.055) / 1.055).pow(2.4)
+        }
+        return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2] > 0.179
+    }
+
+    fun onAccent(hex: Int): Color = if (needsDarkText(hex)) Color.Black else Color.White
+}
+
 /** The accent colour: one of the six classic presets, or any colour from the picker (a Pro feature). */
 @JvmInline
 value class Accent(val hex: Int) {
     val color: Color get() = Color(0xFF000000.toInt() or hex)
+    /** Text and glyphs drawn on the accent: black on the light ones (lime, teal, mango), white on the rest. */
+    val onColor: Color get() = AccentContrast.onAccent(hex)
     val isPreset: Boolean get() = hex in NAMES
     /** The preset's name, or the hex code of a custom colour. */
     val name: String get() = NAMES[hex] ?: String.format(Locale.ROOT, "#%06X", hex)
@@ -81,6 +100,7 @@ data class MetroPalette(val theme: MetroThemeMode, val accent: Accent) {
     /** The open app bar is nearly solid, so its labels and menu read clearly over busy photos. */
     val appBarExpanded get() = chrome.copy(alpha = 0.95f)
     val accentColor get() = accent.color
+    val onAccent get() = accent.onColor
 }
 
 object MetroMetrics {

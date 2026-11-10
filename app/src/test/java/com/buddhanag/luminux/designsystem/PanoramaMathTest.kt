@@ -38,4 +38,20 @@ class PanoramaMathTest {
         assertEquals(-math.leadingWidth * 0.3f, math.backgroundX(0f), 0.001f)
         assertEquals(400f, math.titleX(0f, titleWidth, margin), 0.001f)
     }
+
+    @Test fun expandedWidthSplitsTwoPanelsAcrossFoldOrWithPeekFallback() {
+        // Vertical fold wider than width / 3 pins each panel cleanly to the fold line.
+        val foldPeek = panoramaEffectivePeek(screenWidth = 840f, peek = 44f, expandedWidth = true, foldX = 420f)
+        val foldMath = PanoramaMath(screenWidth = 840f, peek = foldPeek, panels = 4, start = 0)
+        assertEquals(420f, foldMath.panelWidth, 0.001f)
+        assertEquals(840f, foldMath.maxOffset, 0.001f)
+
+        // Flat expanded window (or off-center fold <= width / 3) keeps peek on the right edge for two panels.
+        val flatPeek = panoramaEffectivePeek(screenWidth = 844f, peek = 44f, expandedWidth = true, foldX = null)
+        val flatMath = PanoramaMath(screenWidth = 844f, peek = flatPeek, panels = 4, start = 0)
+        assertEquals(400f, flatMath.panelWidth, 0.001f)
+
+        val narrowFoldPeek = panoramaEffectivePeek(screenWidth = 844f, peek = 44f, expandedWidth = true, foldX = 200f)
+        assertEquals(flatPeek, narrowFoldPeek, 0.001f)
+    }
 }

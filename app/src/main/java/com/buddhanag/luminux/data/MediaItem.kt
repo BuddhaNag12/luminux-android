@@ -60,7 +60,10 @@ sealed interface AssetSource {
     @Serializable data class Identifiers(val ids: List<Long>) : AssetSource
 }
 
-data class Album(val id: String, val title: String, val count: Int, val keyItemId: Long?, val isUserAlbum: Boolean)
+data class Album(val id: String, val title: String, val count: Int, val keyItemId: Long?, val isUserAlbum: Boolean) {
+    /** Spoken as one TalkBack element, matching iOS `Album.spokenLabel`. */
+    val spokenLabel: String get() = if (count == 1) "$title, 1 photo" else "$title, $count photos"
+}
 
 object AlbumIds {
     const val SCREENSHOTS = "smart:screenshots"

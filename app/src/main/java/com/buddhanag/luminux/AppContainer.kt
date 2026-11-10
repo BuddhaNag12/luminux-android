@@ -12,6 +12,7 @@ import com.buddhanag.luminux.data.MediaStorePhotoRepository
 import com.buddhanag.luminux.data.PhotoRepository
 import com.buddhanag.luminux.data.SettingsRepository
 import com.buddhanag.luminux.data.ThumbnailPrefetcher
+import com.buddhanag.luminux.data.TileCollection
 import com.buddhanag.luminux.data.hub.HubTilesRepository
 import com.buddhanag.luminux.data.journal.JournalRepository
 import com.buddhanag.luminux.designsystem.LiveTileScheduler
@@ -58,9 +59,13 @@ class AppContainer(val context: Context) {
     val hubTiles = HubTilesRepository(database.hubDao(), appScope)
 
     val liveTileExporter by lazy {
-        LiveTileExporter(context, SingletonImageLoader.get(context), photos, liveTileStore) { id ->
-            hubTiles.photoSet(id)?.let { it.title to it.photoIds }
-        }
+        LiveTileExporter(
+            context, SingletonImageLoader.get(context), photos, liveTileStore,
+            photoSet = { id -> hubTiles.photoSet(id)?.let { it.title to it.photoIds } },
+            allPhotoSets = {
+                hubTiles.layout.value.sets.values.sortedBy { it.title }.map { TileCollection.photoSet(it.id, it.title) }
+            },
+        )
     }
 
     val navigator = Navigator()
@@ -90,7 +95,12 @@ class AppContainer(val context: Context) {
     /** 4 s after the library or accent last changed, so the hub finishes opening before the photo work starts. */
     @OptIn(FlowPreview::class)
     private fun startLiveTileExport() = appScope.launch(Dispatchers.IO) {
-        combine(photos.snapshot.filter { it.isLoaded }.map { it.generation }, settings.settings.map { it.accentHex }, ::Pair)
+        combine(
+            photos.snapshot.filter { it.isLoaded }.map { it.generation },
+            settings.settings.map { it.accentHex },
+            hubTiles.layout.map { it.sets },
+            ::Triple,
+        )
             .distinctUntilChanged()
             .debounce(4_000)
             .collectLatest { liveTileExporter.export() }

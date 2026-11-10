@@ -39,7 +39,8 @@ class SettingsRepositoryTest {
         assertTrue(s.showsStandBy)
         assertTrue(s.namesJournalPlaces)
         assertFalse(s.hasSeenOnboarding)
-        assertEquals(PageTransition.ZOOM, s.pageTransition)
+        assertEquals(PageTransition.TURNSTILE, s.pageTransition)
+        assertTrue(s.animatesPages)
     }
 
     @Test fun theBackgroundSourceIsKept() = runTest {
@@ -81,10 +82,12 @@ class SettingsRepositoryTest {
             set(SettingsKeys.accent, 0xA4C400)
             setTheme(MetroThemeMode.Light)
             set(SettingsKeys.playsLivingImages, false)
-            setPageTransition(PageTransition.TURNSTILE)
+            setPageTransition(PageTransition.ZOOM)
+            set(SettingsKeys.animatesPages, false)
         }
         val s = store.read()
-        assertEquals(PageTransition.TURNSTILE, s.pageTransition)
+        assertEquals(PageTransition.ZOOM, s.pageTransition)
+        assertFalse(s.animatesPages)
         assertEquals(0xA4C400, s.accentHex)
         assertEquals(MetroThemeMode.Light, s.theme)
         assertFalse(s.playsLivingImages)

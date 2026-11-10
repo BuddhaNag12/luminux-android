@@ -39,6 +39,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -99,9 +101,9 @@ private fun Sheet(items: List<MediaItem>, onDismiss: () -> Unit) {
         MetroText("add to album", MetroType.title, Modifier.offset(x = (-3).dp), maxLines = 1, softWrap = false)
         LazyColumn(contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item(key = "new") {
-                TiltRow({ isNaming = true }) {
+                TiltRow({ isNaming = true }, label = "new album") {
                     Box(Modifier.size(64.dp).background(metro.accentColor), contentAlignment = Alignment.Center) {
-                        Image(ActionIcons.add, null, Modifier.size(28.dp), colorFilter = ColorFilter.tint(Color.White))
+                        Image(ActionIcons.add, null, Modifier.size(28.dp), colorFilter = ColorFilter.tint(metro.onAccent))
                     }
                     MetroText("new album", metroFont(22.sp, Semilight))
                 }
@@ -112,7 +114,7 @@ private fun Sheet(items: List<MediaItem>, onDismiss: () -> Unit) {
                         photos.add(items, toAlbum = album.id)
                         onDismiss()
                     }
-                }) { AlbumRowContent(album) }
+                }, label = album.spokenLabel) { AlbumRowContent(album) }
             }
         }
     }
@@ -127,13 +129,14 @@ private fun Sheet(items: List<MediaItem>, onDismiss: () -> Unit) {
 }
 
 @Composable
-private fun TiltRow(onClick: () -> Unit, content: @Composable () -> Unit) {
+private fun TiltRow(onClick: () -> Unit, label: String, content: @Composable () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     Row(
         Modifier
             .fillMaxWidth()
             .tiltPress(interaction, trackTouch = false)
-            .clickable(interaction, indication = null, role = Role.Button, onClick = onClick),
+            .clickable(interaction, indication = null, role = Role.Button, onClick = onClick)
+            .clearAndSetSemantics { contentDescription = label },
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) { content() }

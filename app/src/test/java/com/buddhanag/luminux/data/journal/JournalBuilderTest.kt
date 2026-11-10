@@ -1,5 +1,7 @@
 package com.buddhanag.luminux.data.journal
 
+import com.buddhanag.luminux.data.MediaItem
+import com.buddhanag.luminux.data.MediaType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -98,5 +100,32 @@ class JournalBuilderTest {
     @Test fun keyPhotosLeadWithFavouritesThenSpread() {
         val e = JournalEntry("1", EntryKind.Moment, date(hour = 9), date(hour = 10), (1L..10L).toList(), listOf(5L), null, false)
         assertEquals(listOf(5L, 1L, 6L), JournalState().keyPhotos(e, 3))
+    }
+
+    @Test fun deletingAnEntrysFirstPhotoKeepsTrackOfIt() {
+        val initial = photos(4, hour = 14, at = home, prefix = "d")
+        val before = entries(homeBase + initial)
+        val after = entries(homeBase + initial.drop(1))
+        val firstId = initial.first().id.toString()
+        val secondId = initial[1].id.toString()
+        val successors = JournalBuilder.successors(before, after)
+
+        assertEquals(secondId, successors[firstId])
+        val state = JournalState(entries = after, successors = successors)
+        assertEquals(secondId, state.entry(firstId)?.id)
+    }
+
+    @Test fun onlyCameraPhotosMakeTheJournal() {
+        fun item(path: String, name: String) = MediaItem(
+            id = 1L, type = MediaType.IMAGE, mimeType = "image/jpeg", dateTaken = 1_000L, dateAdded = 1L,
+            dateModified = 1L, width = 1000, height = 1000, durationMs = 0L, isFavorite = false,
+            relativePath = path, displayName = name, sizeBytes = 100L,
+        )
+        assertTrue(JournalBuilder.isFromCamera(item("DCIM/Camera/", "IMG_1001.jpg"), hasLocation = false))
+        assertTrue(JournalBuilder.isFromCamera(item("Pictures/Other/", "IMG_1002.jpg"), hasLocation = true))
+        assertFalse(JournalBuilder.isFromCamera(item("Download/", "photo.jpg"), hasLocation = false))
+        assertFalse(JournalBuilder.isFromCamera(item("DCIM/Screenshots/", "Screenshot_1.png"), hasLocation = true))
+        assertFalse(JournalBuilder.isFromCamera(item("DCIM/Camera/", "IMG_1001_edited.jpg"), hasLocation = true))
+        assertFalse(JournalBuilder.isFromCamera(item("DCIM/Camera/", "IMG_1001-edited.jpg"), hasLocation = false))
     }
 }

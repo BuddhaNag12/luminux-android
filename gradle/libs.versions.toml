@@ -25,6 +25,7 @@ ump = "4.0.0"
 browser = "1.10.0"
 glance = "1.2.0"
 work = "2.12.0"
+window = "1.5.1"
 benchmark = "1.5.0"
 profileinstaller = "1.4.1"
 uiautomator = "2.4.0"
@@ -64,6 +65,7 @@ ump = { module = "com.google.android.ump:user-messaging-platform", version.ref =
 androidx-browser = { module = "androidx.browser:browser", version.ref = "browser" }
 glance-appwidget = { module = "androidx.glance:glance-appwidget", version.ref = "glance" }
 work-runtime = { module = "androidx.work:work-runtime", version.ref = "work" }
+androidx-window = { module = "androidx.window:window", version.ref = "window" }
 junit = { module = "junit:junit", version.ref = "junit" }
 androidx-profileinstaller = { module = "androidx.profileinstaller:profileinstaller", version.ref = "profileinstaller" }
 androidx-benchmark-macro-junit4 = { module = "androidx.benchmark:benchmark-macro-junit4", version.ref = "benchmark" }

@@ -67,6 +67,8 @@ import com.buddhanag.luminux.data.MediaItem
 import com.buddhanag.luminux.data.MediaType
 import com.buddhanag.luminux.designsystem.AppBarButton
 import com.buddhanag.luminux.designsystem.AppBarMenuItem
+import com.buddhanag.luminux.designsystem.LocalFoldY
+import com.buddhanag.luminux.designsystem.LocalIsHalfOpen
 import com.buddhanag.luminux.designsystem.LocalMetro
 import com.buddhanag.luminux.designsystem.MetroAppBar
 import com.buddhanag.luminux.designsystem.MetroMetrics
@@ -77,6 +79,7 @@ import com.buddhanag.luminux.feature.pro.ProTrial
 import com.buddhanag.luminux.designsystem.MetroText
 import com.buddhanag.luminux.designsystem.MetroThemeMode
 import com.buddhanag.luminux.designsystem.MetroType
+import com.buddhanag.luminux.designsystem.vanishFlip
 import com.buddhanag.luminux.feature.actions.AddToAlbumSheet
 import com.buddhanag.luminux.feature.shell.Navigator
 import com.buddhanag.luminux.feature.shell.ViewerRequest
@@ -108,6 +111,7 @@ internal fun ViewerScreen(request: ViewerRequest, navigator: Navigator, zoom: Vi
     val photos = container.photos
     val scope = rememberCoroutineScope()
     val snapshot by photos.snapshot.collectAsStateWithLifecycle()
+    val vanishingIds by photos.vanishingIds.collectAsStateWithLifecycle()
     val assets = remember(snapshot, request.source) { photos.items(request.source) }
     // The pager's count and key lambdas outlive a composition; both read the newest list, or a new copy indexes past the end.
     val latestAssets by rememberUpdatedState(assets)
@@ -201,7 +205,9 @@ internal fun ViewerScreen(request: ViewerRequest, navigator: Navigator, zoom: Vi
         if (result.resultCode != Activity.RESULT_OK && id != null) pendingFavorites = pendingFavorites - id
         favoriteInFlight = null
     }
-    val trashLauncher = rememberLauncherForActivityResult(StartIntentSenderForResult()) {}
+    val trashLauncher = rememberLauncherForActivityResult(StartIntentSenderForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) photos.commitVanish() else photos.cancelVanish()
+    }
 
     suspend fun liftSubject(item: MediaItem) = runCatching { SubjectLift.lift(photos.editPreview(item, SubjectLift.MAX_SIDE)) }.getOrNull()
 
@@ -215,7 +221,14 @@ internal fun ViewerScreen(request: ViewerRequest, navigator: Navigator, zoom: Vi
     CompositionLocalProvider(LocalMetro provides MetroPalette(MetroThemeMode.Dark, outerPalette.accent)) {
         // The black backdrop and the chrome fade with the zoom; the flying photo is drawn on top at full strength.
         BoxWithConstraints(Modifier.fillMaxSize().graphicsLayer { alpha = zoomFraction }) {
-            val panelHeight = (maxHeight.value * 0.55f).roundToInt().toFloat()
+            val foldY = LocalFoldY.current
+            val inTabletop = LocalIsHalfOpen.current && foldY != null
+            val panelHeight = if (inTabletop) {
+                if (maxHeight.value <= 0f) 0f
+                else (maxHeight.value - foldY.value).coerceIn(min(120f, maxHeight.value), maxHeight.value).roundToInt().toFloat()
+            } else {
+                (maxHeight.value * 0.55f).roundToInt().toFloat()
+            }
             fun rubberBand(l: Float) = if (l <= panelHeight) max(l, 0f) else panelHeight + (l - panelHeight) * 0.2f
 
             fun setDetails(open: Boolean) {
@@ -225,6 +238,21 @@ internal fun ViewerScreen(request: ViewerRequest, navigator: Navigator, zoom: Vi
                 scope.launch {
                     lift.animateTo(if (open) panelHeight else 0f, MetroMotion.standard())
                     if (!detailsOpen) panelMounted = false
+                }
+            }
+
+            var wasTabletop by remember { mutableStateOf(false) }
+            LaunchedEffect(inTabletop, panelHeight) {
+                when {
+                    inTabletop && !wasTabletop -> {
+                        wasTabletop = true
+                        setDetails(true)
+                    }
+                    !inTabletop && wasTabletop -> {
+                        wasTabletop = false
+                        setDetails(false)
+                    }
+                    inTabletop && detailsOpen -> lift.animateTo(panelHeight, MetroMotion.standard())
                 }
             }
 
@@ -306,7 +334,9 @@ internal fun ViewerScreen(request: ViewerRequest, navigator: Navigator, zoom: Vi
                     val item = latestAssets.getOrNull(page) ?: return@HorizontalPager
                     val isCurrent = page == pager.settledPage
                     // While the viewer zooms in or out, ZoomStandIn flies the photo; the page itself waits hidden.
-                    val pageModifier = Modifier.graphicsLayer { alpha = if (isCurrent && zooming) 0f else 1f }
+                    val pageModifier = Modifier
+                        .graphicsLayer { alpha = if (isCurrent && zooming) 0f else 1f }
+                        .vanishFlip(item.id in vanishingIds)
                     if (item.type == MediaType.VIDEO) {
                         VideoPage(item, isCurrent, playback, ::onTap, pageModifier)
                     } else {
@@ -386,7 +416,10 @@ internal fun ViewerScreen(request: ViewerRequest, navigator: Navigator, zoom: Vi
                     if (item.isEditable) {
                         add(AppBarButton("edit", ViewerIcons.edit) { withPro("edit this photo once") { editing = item } })
                     }
-                    add(AppBarButton("delete", ViewerIcons.trash) { trashLauncher.launch(photos.trashRequest(listOf(item))) })
+                    add(AppBarButton("delete", ViewerIcons.trash) {
+                        photos.beginPendingDelete(setOf(item.id))
+                        trashLauncher.launch(photos.trashRequest(listOf(item)))
+                    })
                 }
                 val menu = buildList {
                     if (item.isEditable) {
@@ -407,7 +440,7 @@ internal fun ViewerScreen(request: ViewerRequest, navigator: Navigator, zoom: Vi
                 }
             }
         }
-        if (zooming) current?.let { item -> ZoomStandIn(item, zoom.tiles[item.id], zoom.page, zoomFraction) }
+        if (zooming) current?.let { item -> ZoomStandIn(item, zoom.tile(item.id), zoom.page, zoomFraction) }
     }
 
     CompositionLocalProvider(LocalMetro provides outerPalette) {

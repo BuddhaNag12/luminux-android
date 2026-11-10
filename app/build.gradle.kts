@@ -31,6 +31,8 @@ val keystore = Properties().apply { if (keystoreFile.exists()) keystoreFile.inpu
 android {
     namespace = "com.buddhanag.luminux"
     compileSdk = 37
+    // The NDK that extracts the native symbol table for Play (release ndk { debugSymbolLevel }); no C++ is built.
+    ndkVersion = "30.0.16248370"
 
     defaultConfig {
         applicationId = "com.buddhanag.luminux"
@@ -66,6 +68,8 @@ android {
             manifestPlaceholders["admobAppId"] = admobAppId.ifEmpty { testAdmobAppId }
             isMinifyEnabled = true
             isShrinkResources = true
+            // Ships the native libraries' symbol table with the bundle, so Play can read native crashes and ANRs.
+            ndk { debugSymbolLevel = "SYMBOL_TABLE" }
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
             signingConfig = signingConfigs.findByName("upload") ?: signingConfigs.getByName("debug")
         }
@@ -140,6 +144,7 @@ dependencies {
     implementation(libs.androidx.browser)
     implementation(libs.glance.appwidget)
     implementation(libs.work.runtime)
+    implementation(libs.androidx.window)
     // Installs the baseline profile on devices that don't get it from Play, and lets the generator read it back.
     implementation(libs.androidx.profileinstaller)
     baselineProfile(project(":baselineprofile"))

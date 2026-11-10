@@ -23,8 +23,19 @@ class HubLayoutTest {
     @Test fun startsWithTheBuiltInTiles() {
         val tiles = HubLayout()
         assertEquals(listOf(CameraRoll, Albums, Date, Favorites, Places), tiles.tiles.map { it.kind })
-        assertTrue(tiles.tiles.all { it.size == HubTileSize.Medium })
+        assertEquals(HubTileSize.Wide, tiles.tiles.first().size)
+        assertTrue(tiles.tiles.drop(1).all { it.size == HubTileSize.Medium })
         assertEquals(0, tiles.pinCount)
+    }
+
+    @Test fun resetPutsBuiltInsBackAndKeepsPins() {
+        val (pinned, setId) = pinSet(HubLayout(), "beach", listOf(1, 2))
+        val scrambled = pinned.pinAlbum("a").resize(CameraRoll).move(Favorites, 0).resetLayout()
+        assertEquals(
+            listOf(CameraRoll, Albums, Date, Favorites, Places, PhotoSet(setId), Album("a")),
+            scrambled.tiles.map { it.kind },
+        )
+        assertEquals(HubTileSize.Wide, scrambled.tiles.first().size)
     }
 
     @Test fun freeUsersPinTwoThenPro() {

@@ -52,6 +52,7 @@ import com.buddhanag.luminux.designsystem.MetroAppBarHost
 import com.buddhanag.luminux.designsystem.MetroMetrics
 import com.buddhanag.luminux.designsystem.MetroText
 import com.buddhanag.luminux.designsystem.MetroType
+import com.buddhanag.luminux.designsystem.OverflowingTitle
 import com.buddhanag.luminux.designsystem.metroFeather
 import com.buddhanag.luminux.feature.actions.AddToAlbumSheet
 import com.buddhanag.luminux.feature.actions.selectionActionButtons
@@ -111,10 +112,10 @@ fun PhotoSetScreen(setId: String) {
         Column(Modifier.fillMaxSize().background(metro.background).windowInsetsPadding(WindowInsets.statusBars)) {
             val overline = if (selection.isActive) "LUMINUX · ${selection.selected.size} SELECTED" else "LUMINUX"
             MetroText(overline, MetroType.overline, Modifier.padding(start = MetroMetrics.margin + 4.dp, top = 16.dp).metroFeather(row = 0))
-            MetroText(
-                title, MetroType.title,
-                Modifier.fillMaxWidth().clipToBounds().padding(start = MetroMetrics.margin + 1.dp, bottom = 8.dp).metroFeather(row = 0),
-                maxLines = 1, softWrap = false,
+            OverflowingTitle(
+                title,
+                Modifier.padding(bottom = 8.dp),
+                Modifier.padding(start = MetroMetrics.margin + 1.dp).metroFeather(row = 0),
             )
             AssetGrid(
                 AssetSource.Identifiers(photoSet?.photoIds.orEmpty()), selection,

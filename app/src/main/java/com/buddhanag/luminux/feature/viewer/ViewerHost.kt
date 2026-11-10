@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.toSize
@@ -40,10 +41,26 @@ class ViewerZoom internal constructor(private val navigator: Navigator) {
      * zoom has landed on it, so the flying photo never passes over a copy of itself.
      */
     internal val coveredId: Long? get() = currentId ?: navigator.viewer?.startId
-    /** On-screen tiles in root coordinates. Plain maps: read only while zooming, so updates needn't recompose. */
-    internal val tiles = HashMap<Long, Rect>()
+    /** On-screen tiles in root coordinates, keyed by (photo id, source token) so duplicate tiles don't clobber each other. */
+    private val tiles = HashMap<Long, LinkedHashMap<Any, Rect>>()
     /** The current photo's rect in the viewer, root coordinates, including a drag to dismiss. */
     internal var page: Rect? = null
+
+    internal fun register(id: Long, token: Any, rect: Rect) {
+        tiles.getOrPut(id) { LinkedHashMap() }[token] = rect
+    }
+
+    internal fun unregister(id: Long, token: Any) {
+        val entries = tiles[id] ?: return
+        entries.remove(token)
+        if (entries.isEmpty()) tiles.remove(id)
+    }
+
+    internal fun tile(id: Long): Rect? = tiles[id]?.values?.lastOrNull()
+}
+
+private class RectHolder {
+    var rect: Rect? = null
 }
 
 internal val LocalViewerZoom = staticCompositionLocalOf<ViewerZoom?> { null }
@@ -56,13 +73,22 @@ internal val LocalViewerZoom = staticCompositionLocalOf<ViewerZoom?> { null }
 fun Modifier.zoomSource(id: Long): Modifier = composed {
     val zoom = LocalViewerZoom.current ?: return@composed Modifier
     val covered = LocalFeather.current.state == FeatherState.Above
+    val holder = remember { RectHolder() }
     DisposableEffect(zoom, id, covered) {
-        if (covered) zoom.tiles.remove(id)
-        onDispose { zoom.tiles.remove(id) }
+        if (covered) zoom.unregister(id, holder) else holder.rect?.let { zoom.register(id, holder, it) }
+        onDispose { zoom.unregister(id, holder) }
     }
     Modifier
-        .onGloballyPositioned { if (!covered) zoom.tiles[id] = Rect(it.positionInRoot(), it.size.toSize()) }
-        .graphicsLayer { alpha = if (zoom.coveredId == id) 0f else 1f }
+        .onGloballyPositioned { coords ->
+            val rect = if (coords.isAttached && !coords.boundsInRoot().isEmpty) {
+                Rect(coords.positionInRoot(), coords.size.toSize())
+            } else {
+                null
+            }
+            holder.rect = rect
+            if (!covered && rect != null) zoom.register(id, holder, rect) else zoom.unregister(id, holder)
+        }
+        .graphicsLayer { alpha = if (zoom.coveredId == id && !covered) 0f else 1f }
 }
 
 /** Hosts [content] (the page stack) with the full-screen viewer over it whenever `navigator.viewer` is set. */

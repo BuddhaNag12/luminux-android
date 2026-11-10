@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -27,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -35,6 +38,7 @@ import com.buddhanag.luminux.designsystem.MetroMotion
 import com.buddhanag.luminux.designsystem.MetroText
 import com.buddhanag.luminux.designsystem.MetroType
 import com.buddhanag.luminux.designsystem.Semilight
+import com.buddhanag.luminux.designsystem.cappedMetroScale
 import com.buddhanag.luminux.designsystem.metroFont
 import com.buddhanag.luminux.designsystem.tiltPress
 
@@ -101,10 +105,16 @@ internal fun <T> Segments(label: String, options: List<T>, selection: T, title: 
                     .weight(1f)
                     .defaultMinSize(minHeight = 44.dp)
                     .background(fill)
-                    .selectable(selected, remember { MutableInteractionSource() }, indication = null, role = Role.RadioButton) { onSelect(option) },
+                    .selectable(selected, remember { MutableInteractionSource() }, indication = null, role = Role.RadioButton) { onSelect(option) }
+                    .padding(horizontal = 4.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                MetroText(title(option), metroFont(17.sp, Semilight), color = if (selected) Color.White else metro.foreground)
+                BasicText(
+                    title(option),
+                    style = metroFont(17.sp, Semilight).cappedMetroScale().copy(color = if (selected) metro.onAccent else metro.foreground),
+                    maxLines = 1, softWrap = false, overflow = TextOverflow.Clip,
+                    autoSize = TextAutoSize.StepBased(minFontSize = 8.5.sp, maxFontSize = 17.sp),
+                )
             }
         }
     }

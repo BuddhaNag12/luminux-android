@@ -59,6 +59,7 @@ import com.buddhanag.luminux.feature.grid.AssetGrid
 import com.buddhanag.luminux.feature.grid.SelectionModel
 import com.buddhanag.luminux.designsystem.AppBarButton
 import com.buddhanag.luminux.designsystem.LocalMetro
+import com.buddhanag.luminux.designsystem.LocalReduceMotion
 import com.buddhanag.luminux.designsystem.MetroAppBarHost
 import com.buddhanag.luminux.designsystem.MetroButton
 import com.buddhanag.luminux.designsystem.MetroMetrics
@@ -67,6 +68,7 @@ import com.buddhanag.luminux.designsystem.MetroType
 import com.buddhanag.luminux.designsystem.Semilight
 import com.buddhanag.luminux.designsystem.metroFeather
 import com.buddhanag.luminux.designsystem.metroFont
+import com.buddhanag.luminux.feature.shell.Route
 import kotlinx.coroutines.delay
 import java.time.ZoneId
 
@@ -103,7 +105,10 @@ fun JournalScreen() {
 @Composable
 fun JournalEntryScreen(entryId: String) {
     val metro = LocalMetro.current
-    val repository = LocalContext.current.container.journal
+    val container = LocalContext.current.container
+    val repository = container.journal
+    val navigator = container.navigator
+    val reduceMotion = LocalReduceMotion.current
     val journal by repository.state.collectAsStateWithLifecycle()
     val entry = journal.entry(entryId)
     var expanded by remember { mutableStateOf(false) }
@@ -111,6 +116,13 @@ fun JournalEntryScreen(entryId: String) {
     var editingNote by rememberSaveable { mutableStateOf(false) }
     val selection = remember { SelectionModel() }
     var addToAlbum by remember { mutableStateOf<List<MediaItem>?>(null) }
+
+    // Deleting photos can take an entry below the minimum; pop automatically instead of leaving an empty screen.
+    LaunchedEffect(entry == null, journal.isBuilt, navigator.viewer) {
+        if (journal.isBuilt && entry == null && navigator.viewer == null && navigator.path.lastOrNull() == Route.JournalEntry(entryId)) {
+            navigator.pop(reduceMotion)
+        }
+    }
 
     val buttons = when {
         entry == null -> emptyList()

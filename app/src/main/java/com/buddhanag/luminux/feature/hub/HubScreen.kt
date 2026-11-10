@@ -89,6 +89,7 @@ import com.buddhanag.luminux.designsystem.tiltParallax
 import com.buddhanag.luminux.designsystem.tiltPress
 import com.buddhanag.luminux.feature.settings.effectiveBackground
 import com.buddhanag.luminux.feature.shell.Route
+import com.buddhanag.luminux.feature.viewer.zoomSource
 
 /** The collection panel's index; it moves to 1 once spec 09's news panel sits to its left. */
 
@@ -110,6 +111,7 @@ fun HubScreen() {
     val unlocksPro = isProUnlocked || container.proStore.isTestBuild
     val reduceMotion = LocalReduceMotion.current
     val edit = remember { HubEditState() }
+    var showsAllTiles by remember { mutableStateOf(false) }
     // Back finishes customizing, as the "done" button does, rather than leaving the app (the hub is the stack's root).
     BackHandler(enabled = edit.isEditing && navigator.path.isEmpty()) { edit.end() }
     val news by container.news.state.collectAsStateWithLifecycle()
@@ -149,6 +151,7 @@ fun HubScreen() {
             onExpandedChange = { isAppBarExpanded = it },
             menuItems = if (edit.isEditing) emptyList() else buildList {
                 add(AppBarMenuItem("customize tiles") { edit.begin(null) })
+                add(AppBarMenuItem("reset tiles") { repo.resetLayout() })
                 add(AppBarMenuItem("settings") { navigator.push(Route.Settings) })
                 if (isLimited) add(AppBarMenuItem("choose more photos") { chooseMore.launch(MEDIA_PERMISSIONS) })
             },
@@ -171,7 +174,11 @@ fun HubScreen() {
                                         .widthIn(max = 384.dp)
                                         // The tiles drift against the background, so they seem to float above it.
                                         .tiltParallax(-8.dp * settings.tiltStrength.scale),
+                                    limit = if (showsAllTiles || edit.isEditing) null else TILE_LIMIT,
                                 )
+                            }
+                            if (layout.tiles.size > TILE_LIMIT && !showsAllTiles && !edit.isEditing) item {
+                                MetroButton("see all", { showsAllTiles = true }, Modifier.padding(top = 16.dp))
                             }
                             if (isLimited) item {
                                 Column(Modifier.padding(top = 16.dp, end = MetroMetrics.margin), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -183,7 +190,11 @@ fun HubScreen() {
                     },
                     {
                         PanoramaSection("what's new", bottomInset = bottom) {
-                            photoGrid(container.photos, AssetSource.Recent, snapshot.isLoaded, "No photos from the last 30 days.", openViewer)
+                            photoGrid(
+                                container.photos, AssetSource.Recent, snapshot.isLoaded,
+                                "No photos from the last 30 days.", openViewer,
+                                onSeeAll = { navigator.push(Route.Collection(CollectionPages.ALL)) },
+                            )
                         }
                     },
                     {
@@ -205,6 +216,7 @@ fun HubScreen() {
                             photoGrid(
                                 container.photos, AssetSource.Favorites, snapshot.isLoaded,
                                 "No favorites yet. Tap the heart on a photo to add it here.", openViewer,
+                                onSeeAll = { navigator.push(Route.Collection(CollectionPages.FAVORITES)) },
                             )
                         }
                     },
@@ -282,22 +294,25 @@ private fun CollectionPanel(edit: HubEditState, bottomInset: Dp, content: LazyLi
     }
 }
 
-/** What's new and favorites: up to 60 photos, three to a row. */
+/** What's new and favorites: up to 30 photos, three to a row, with "see all" when there are more. */
 private fun LazyListScope.photoGrid(
     photos: PhotoRepository,
     source: AssetSource,
     isLoaded: Boolean,
     empty: String,
     onOpen: (AssetSource, MediaItem, Int) -> Unit,
+    onSeeAll: () -> Unit,
 ) {
-    val items = photos.items(source).take(60)
+    val all = photos.items(source)
+    val items = all.take(HUB_PHOTO_LIMIT)
     if (items.isEmpty() && isLoaded) {
         item {
             MetroText(empty, MetroType.body, Modifier.padding(end = MetroMetrics.margin), color = LocalMetro.current.secondary)
         }
         return
     }
-    items.chunked(3).forEachIndexed { row, chunk ->
+    val rows = items.chunked(3)
+    rows.forEachIndexed { row, chunk ->
         item(key = chunk.first().id) {
             Row(
                 Modifier.padding(end = MetroMetrics.margin, bottom = MetroMetrics.gutter),
@@ -308,6 +323,11 @@ private fun LazyListScope.photoGrid(
                 }
                 repeat(3 - chunk.size) { Spacer(Modifier.weight(1f)) }
             }
+        }
+    }
+    if (all.size > HUB_PHOTO_LIMIT) {
+        item {
+            MetroButton("see all", onSeeAll, Modifier.padding(top = 20.dp).metroFeather(row = 2 + rows.size))
         }
     }
 }
@@ -321,6 +341,7 @@ private fun Thumbnail(item: MediaItem, modifier: Modifier, onClick: () -> Unit) 
         Thumbnails.gridRequest(context, item, px), null,
         modifier
             .aspectRatio(1f)
+            .zoomSource(item.id)
             .tiltPress(interaction, trackTouch = false)
             .clickable(interaction, indication = null, role = Role.Button, onClick = onClick)
             .semantics { contentDescription = if (item.type == MediaType.VIDEO) "video" else "photo" },
@@ -367,3 +388,5 @@ private fun HubBackground(source: HubBackgroundSource, isLoaded: Boolean, photos
 
 /** The places tile cycles through this many recent places (HubTileGrid.swift). */
 private const val LIVE_PLACES = 8
+private const val TILE_LIMIT = 8
+private const val HUB_PHOTO_LIMIT = 30

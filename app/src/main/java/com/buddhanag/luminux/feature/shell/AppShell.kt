@@ -16,11 +16,13 @@ import com.buddhanag.luminux.data.AlbumIds
 import com.buddhanag.luminux.data.PageTransition
 import com.buddhanag.luminux.data.SettingsKeys
 import com.buddhanag.luminux.designsystem.Accent
+import com.buddhanag.luminux.feature.actions.WidgetCollectionsScreen
 import com.buddhanag.luminux.feature.collection.AlbumScreen
 import com.buddhanag.luminux.feature.collection.CollectionScreen
 import com.buddhanag.luminux.feature.hub.HubScreen
 import com.buddhanag.luminux.feature.hub.PhotoSetScreen
 import com.buddhanag.luminux.feature.settings.AboutScreen
+import com.buddhanag.luminux.feature.settings.BackgroundPickerScreen
 import com.buddhanag.luminux.feature.settings.SettingsScreen
 import com.buddhanag.luminux.feature.journal.JournalEntryScreen
 import com.buddhanag.luminux.feature.journal.JournalScreen
@@ -31,7 +33,7 @@ import com.buddhanag.luminux.feature.viewer.ViewerHost
 
 /** AppShell (LuminuxApp.swift): the hub with the page stack over it, deep links and the app-wide side effects. */
 @Composable
-fun AppShell(pendingDeepLink: MutableState<Uri?>, pageTransition: PageTransition) {
+fun AppShell(pendingDeepLink: MutableState<Uri?>, pageTransition: PageTransition, animatesPages: Boolean = true) {
     val container = LocalContext.current.container
     val navigator = container.navigator
     val settings by container.settings.settings.collectAsStateWithLifecycle(initialValue = null)
@@ -61,9 +63,11 @@ fun AppShell(pendingDeepLink: MutableState<Uri?>, pageTransition: PageTransition
 
     // The full-screen viewer over the stack, zooming out of the tile marked with Modifier.zoomSource.
     ViewerHost(navigator) {
-        MetroStack(navigator, pageTransition, root = { HubScreen() }) { route ->
+        MetroStack(navigator, pageTransition, animatesPages, root = { HubScreen() }) { route ->
             when (route) {
                 Route.Settings -> SettingsScreen()
+                Route.BackgroundPicker -> BackgroundPickerScreen()
+                Route.WidgetCollections -> WidgetCollectionsScreen()
                 Route.About -> AboutScreen()
                 is Route.Collection -> CollectionScreen(route.page, route.showsJumpList)
                 is Route.Album -> AlbumScreen(route.id)

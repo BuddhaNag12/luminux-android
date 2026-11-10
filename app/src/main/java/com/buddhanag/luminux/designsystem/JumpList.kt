@@ -137,8 +137,8 @@ private fun MonthTile(name: String, sectionId: String?, isCurrent: Boolean, onSe
         BasicText(
             name,
             Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(8.dp),
-            style = metroFont(22.sp, Semilight),
-            color = { if (sectionId == null) metro.secondary.copy(alpha = 0.5f) else Color.White },
+            style = metroFont(22.sp, Semilight).cappedMetroScale(),
+            color = { if (sectionId == null) metro.secondary.copy(alpha = 0.5f) else metro.onAccent },
             overflow = TextOverflow.Clip,
             softWrap = false,
             maxLines = 1,

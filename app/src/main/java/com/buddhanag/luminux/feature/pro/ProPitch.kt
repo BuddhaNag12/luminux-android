@@ -102,16 +102,18 @@ private fun OfferCard(modifier: Modifier) {
     val store = LocalContext.current.container.proStore
     val activity = LocalActivity.current
     val scope = rememberCoroutineScope()
+    val metro = LocalMetro.current
+    val onAccent = metro.onAccent
     val price by store.price.collectAsStateWithLifecycle()
     val isPurchasing by store.isPurchasing.collectAsStateWithLifecycle()
     val canBuy = price != null && !isPurchasing
 
-    Column(modifier.fillMaxWidth().background(LocalMetro.current.accentColor).padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 12.dp)) {
-        MetroText("LUMINUX PRO", MetroType.overline, color = Color.White)
-        MetroText(price ?: "pro", metroFont(48.sp, FontWeight.Light), Modifier.padding(top = 10.dp), color = Color.White)
+    Column(modifier.fillMaxWidth().background(metro.accentColor).padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 12.dp)) {
+        MetroText("LUMINUX PRO", MetroType.overline, color = onAccent)
+        MetroText(price ?: "pro", metroFont(48.sp, FontWeight.Light), Modifier.padding(top = 10.dp), color = onAccent, maxFontScale = 1f)
         MetroText(
             if (price == null) "Can't reach Google Play right now." else "One payment, yours for good. No subscription, no ads.",
-            MetroType.caption, Modifier.alpha(0.9f), color = Color.White,
+            MetroType.caption, Modifier.alpha(0.9f), color = onAccent,
         )
         Box(
             Modifier
@@ -134,7 +136,7 @@ private fun OfferCard(modifier: Modifier) {
                 .fillMaxWidth()
                 .clickable(role = Role.Button) { scope.launch { store.restore() } }
                 .padding(vertical = 13.dp),
-            color = Color.White,
+            color = onAccent,
         )
     }
 }
@@ -148,7 +150,7 @@ private fun UnlockedCard(modifier: Modifier) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(48.dp).background(metro.accentColor), contentAlignment = Alignment.Center) {
-            Image(MetroIcons.check, null, Modifier.size(22.dp), colorFilter = ColorFilter.tint(Color.White))
+            Image(MetroIcons.check, null, Modifier.size(22.dp), colorFilter = ColorFilter.tint(metro.onAccent))
         }
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             MetroText("pro unlocked", metroFont(20.sp, Semilight))

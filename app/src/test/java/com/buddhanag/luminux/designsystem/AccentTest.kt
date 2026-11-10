@@ -46,4 +46,23 @@ class AccentTest {
         assertEquals(red, green)
         assertTrue(blue < red)
     }
+
+    @Test fun textOnEveryAccentClearsBodyContrast() {
+        assertTrue(AccentContrast.needsDarkText(Accent.Lime.hex))
+        assertTrue(AccentContrast.needsDarkText(Accent.Teal.hex))
+        assertTrue(AccentContrast.needsDarkText(Accent.Mango.hex))
+        assertFalse(AccentContrast.needsDarkText(Accent.Cobalt.hex))
+
+        val samples = Accent.presets + listOf(0, 4, 8, 10).flatMap { r ->
+            listOf(0, 4, 8, 10).flatMap { g ->
+                listOf(0, 4, 8, 10).map { b -> Accent.custom(r / 10.0, g / 10.0, b / 10.0) }
+            }
+        }
+        samples.forEach { accent ->
+            val bg = luminance(accent)
+            val fg = if (AccentContrast.needsDarkText(accent.hex)) 0.0 else 1.0
+            val contrast = (maxOf(bg, fg) + 0.05) / (minOf(bg, fg) + 0.05)
+            assertTrue("${accent.name} contrast $contrast < 4.5", contrast >= 4.5)
+        }
+    }
 }

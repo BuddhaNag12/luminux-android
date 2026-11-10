@@ -30,6 +30,9 @@ interface JournalDao {
     @Upsert
     suspend fun upsert(note: JournalNoteEntity)
 
+    @Query("DELETE FROM JournalNote WHERE entryId = :entryId")
+    suspend fun deleteNote(entryId: String)
+
     @Query("SELECT * FROM PlaceName")
     fun placeNames(): Flow<List<PlaceNameEntity>>
 

@@ -42,8 +42,11 @@ fun MetroTile(
     title: String? = null,
     /** Small tiles have no room for a label; the title still names the tile for TalkBack. */
     showsTitle: Boolean = true,
+    /** True when the tile's face is accent-filled rather than a photo, so the label clears body contrast. */
+    isOnAccent: Boolean = false,
     content: @Composable BoxScope.() -> Unit,
 ) {
+    val metro = LocalMetro.current
     val interaction = remember { MutableInteractionSource() }
     Box(
         modifier
@@ -56,7 +59,7 @@ fun MetroTile(
             MetroText(
                 title, MetroType.caption,
                 Modifier.align(Alignment.BottomStart).padding(10.dp).clearAndSetSemantics {},
-                color = Color.White,
+                color = if (isOnAccent) metro.onAccent else Color.White,
             )
         }
     }

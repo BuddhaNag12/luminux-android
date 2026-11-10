@@ -63,22 +63,27 @@ internal fun tileTitle(kind: HubTileKind, data: TileFaceData): String = when (ki
 @Composable
 internal fun HubTileFace(tile: HubTile, data: TileFaceData, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val isSmall = tile.size == HubTileSize.Small
-    MetroTile(onClick, modifier, title = tileTitle(tile.kind, data), showsTitle = !isSmall) {
-        val photos = { source: AssetSource -> data.photos.items(source).take(LIVE_ITEMS) }
-        when (val kind = tile.kind) {
-            HubTileKind.CameraRoll -> Photos(photos(AssetSource.All), HubIcons.photo, tile.size)
+    val items = when (val kind = tile.kind) {
+        HubTileKind.CameraRoll -> data.photos.items(AssetSource.All).take(LIVE_ITEMS)
+        HubTileKind.Albums, HubTileKind.Date -> emptyList()
+        HubTileKind.Favorites -> data.photos.items(AssetSource.Favorites).take(LIVE_ITEMS)
+        HubTileKind.Places -> data.placeCovers
+        is HubTileKind.Album -> data.photos.items(AssetSource.Album(kind.id)).take(LIVE_ITEMS)
+        is HubTileKind.PhotoSet -> data.photos.items(AssetSource.Identifiers(data.layout.sets[kind.id]?.photoIds.orEmpty())).take(LIVE_ITEMS)
+    }
+    val isOnAccent = tile.kind == HubTileKind.Albums || tile.kind == HubTileKind.Date || items.isEmpty()
+    MetroTile(onClick, modifier, title = tileTitle(tile.kind, data), showsTitle = !isSmall, isOnAccent = isOnAccent) {
+        when (tile.kind) {
+            HubTileKind.CameraRoll -> Photos(items, HubIcons.photo, tile.size)
             HubTileKind.Albums -> AmbientTile(AmbientPattern.Albums, data.animatesPatterns)
             HubTileKind.Date -> {
                 AmbientTile(AmbientPattern.Date, data.animatesPatterns)
                 DateFace(isSmall)
             }
-            HubTileKind.Favorites -> Photos(photos(AssetSource.Favorites), HubIcons.heart, tile.size)
-            HubTileKind.Places -> Photos(data.placeCovers, HubIcons.map, tile.size)
-            is HubTileKind.Album -> Photos(photos(AssetSource.Album(kind.id)), HubIcons.albumStack, tile.size)
-            is HubTileKind.PhotoSet -> Photos(
-                photos(AssetSource.Identifiers(data.layout.sets[kind.id]?.photoIds.orEmpty())),
-                HubIcons.photoStack, tile.size,
-            )
+            HubTileKind.Favorites -> Photos(items, HubIcons.heart, tile.size)
+            HubTileKind.Places -> Photos(items, HubIcons.map, tile.size)
+            is HubTileKind.Album -> Photos(items, HubIcons.albumStack, tile.size)
+            is HubTileKind.PhotoSet -> Photos(items, HubIcons.photoStack, tile.size)
         }
     }
 }
@@ -103,8 +108,9 @@ private fun Photos(items: List<MediaItem>, fallback: ImageVector, size: HubTileS
 
 @Composable
 private fun Glyph(icon: ImageVector, isSmall: Boolean) {
-    Box(Modifier.fillMaxSize().background(LocalMetro.current.accentColor), contentAlignment = Alignment.Center) {
-        Image(icon, null, Modifier.size(if (isSmall) 22.dp else 34.dp), colorFilter = ColorFilter.tint(Color.White))
+    val metro = LocalMetro.current
+    Box(Modifier.fillMaxSize().background(metro.accentColor), contentAlignment = Alignment.Center) {
+        Image(icon, null, Modifier.size(if (isSmall) 22.dp else 34.dp), colorFilter = ColorFilter.tint(metro.onAccent))
     }
 }
 
@@ -113,8 +119,9 @@ private val monthFormat = DateTimeFormatter.ofPattern("MMM")
 @Composable
 private fun DateFace(isSmall: Boolean) {
     val now = LocalDate.now()
+    val color = LocalMetro.current.onAccent
     Column(Modifier.padding(if (isSmall) 6.dp else 10.dp)) {
-        if (!isSmall) MetroText(monthFormat.format(now).lowercase(), metroFont(22.sp, Semilight), color = Color.White)
-        MetroText(now.dayOfMonth.toString(), metroFont(if (isSmall) 34.sp else 56.sp, FontWeight.Light), color = Color.White)
+        if (!isSmall) MetroText(monthFormat.format(now).lowercase(), metroFont(22.sp, Semilight), color = color)
+        MetroText(now.dayOfMonth.toString(), metroFont(if (isSmall) 34.sp else 56.sp, FontWeight.Light), color = color, maxFontScale = 1f)
     }
 }

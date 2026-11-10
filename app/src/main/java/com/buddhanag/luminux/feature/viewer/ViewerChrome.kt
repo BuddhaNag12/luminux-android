@@ -1,25 +1,14 @@
 package com.buddhanag.luminux.feature.viewer
 
 import androidx.activity.compose.LocalActivity
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerInputScope
-import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -41,18 +30,6 @@ internal fun SystemBarsHidden(hidden: Boolean) {
         controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         if (hidden) controller.hide(WindowInsetsCompat.Type.systemBars()) else controller.show(WindowInsetsCompat.Type.systemBars())
         onDispose { if (hidden) controller.show(WindowInsetsCompat.Type.systemBars()) }
-    }
-}
-
-/** The iOS ProgressView, in the accent. */
-@Composable
-internal fun Spinner(modifier: Modifier = Modifier) {
-    val accent = LocalMetro.current.accentColor
-    val turn by rememberInfiniteTransition("spinner").animateFloat(
-        0f, 360f, infiniteRepeatable(tween(900, easing = LinearEasing)), label = "turn",
-    )
-    Canvas(modifier.size(24.dp).graphicsLayer { rotationZ = turn }) {
-        drawArc(accent, 0f, 270f, useCenter = false, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
     }
 }
 

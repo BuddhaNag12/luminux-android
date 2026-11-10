@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.compositionLocalOf
@@ -98,6 +99,16 @@ fun Pivot(
         showsNeighbours = true
     }
 
+    var pagerWidth by remember { mutableIntStateOf(0) }
+    var pendingResizePage by remember { mutableIntStateOf(-1) }
+    LaunchedEffect(pagerWidth) {
+        val target = pendingResizePage
+        if (target < 0 || pages.isEmpty()) return@LaunchedEffect
+        pendingResizePage = -1
+        val clamped = target.coerceIn(0, pages.lastIndex)
+        pager.scrollToPage(clamped)
+        if (currentSelection != clamped) onChange(clamped)
+    }
     Column(modifier.fillMaxSize().background(metro.background).windowInsetsPadding(WindowInsets.statusBars)) {
         if (overline != null) {
             MetroText(overline, MetroType.overline, Modifier.metroFeather(row = 0).padding(start = MetroMetrics.margin + 4.dp))
@@ -139,7 +150,19 @@ fun Pivot(
             }
         }
         HorizontalPager(
-            pager, Modifier.fillMaxWidth().weight(1f), verticalAlignment = Alignment.Top, userScrollEnabled = !pinching.value,
+            pager,
+            Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .onSizeChanged {
+                    val width = it.width
+                    if (width > 0 && width != pagerWidth) {
+                        if (pagerWidth > 0 && pendingResizePage < 0) pendingResizePage = currentSelection
+                        pagerWidth = width
+                    }
+                },
+            verticalAlignment = Alignment.Top,
+            userScrollEnabled = !pinching.value,
         ) { page ->
             // Only the page on screen feathers. The others sit off screen, and turning on the screen-edge hinge would
             // swing their tiles into view.

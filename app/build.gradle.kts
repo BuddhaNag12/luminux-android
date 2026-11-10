@@ -120,15 +120,19 @@ val playCredsFile = prop("playServiceAccountJson")
     .takeIf { it.isNotEmpty() }
     ?.let(::file)
     ?: rootProject.file("play-service-account.json")
+val hasPlayCreds = playCredsFile.exists() || !System.getenv("ANDROID_PUBLISHER_CREDENTIALS").isNullOrEmpty()
 
 play {
+    enabled.set(hasPlayCreds)
     if (playCredsFile.exists()) {
         serviceAccountCredentials.set(playCredsFile)
     }
     track.set(prop("playTrack").ifEmpty { "internal" })
     defaultToAppBundles.set(true)
     releaseStatus.set(ReleaseStatus.COMPLETED)
-    resolutionStrategy.set(ResolutionStrategy.AUTO)
+    if (hasPlayCreds) {
+        resolutionStrategy.set(ResolutionStrategy.AUTO)
+    }
 }
 
 room {

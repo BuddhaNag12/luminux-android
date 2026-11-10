@@ -1,0 +1,5 @@
+- Shared zoom transition when opening photos from What's New and Favorites on the Hub
+- Foldable hinge and tabletop layout support in the Hub, Viewer, Editor, and Albums
+- Metro progress dots, flip-out delete animation, and stricter Journal camera filtering
+- Page transition toggle (turnstile/zoom), pushed Background & Widget pickers, and "reset tiles"
+- Improved accent contrast, text size limits, marquee titles, and TalkBack labels

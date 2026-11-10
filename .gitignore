@@ -18,3 +18,5 @@ local.properties
 
 # Release signing secrets (see docs/11-release.md)
 keystore.properties
+play-service-account.json
+*.service-account.json

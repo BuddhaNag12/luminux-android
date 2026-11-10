@@ -1,3 +1,5 @@
+import com.github.triplet.gradle.androidpublisher.ReleaseStatus
+import com.github.triplet.gradle.androidpublisher.ResolutionStrategy
 import java.util.Properties
 
 plugins {
@@ -7,6 +9,7 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.room)
     alias(libs.plugins.baselineprofile)
+    alias(libs.plugins.play.publisher)
 }
 
 // Monetization config (spec 09), from gradle.properties or -P. Empty IDs fall back to Google's test units.
@@ -111,7 +114,26 @@ val checkReleaseAdIds by tasks.registering {
         if (problems.isNotEmpty()) throw GradleException(problems.joinToString("\n"))
     }
 }
-tasks.matching { it.name == "bundleRelease" }.configureEach { dependsOn(checkReleaseAdIds) }
+tasks.matching { it.name == "bundleRelease" || it.name.startsWith("publishRelease") }.configureEach { dependsOn(checkReleaseAdIds) }
+
+val playCredsFile = prop("playServiceAccountJson")
+    .takeIf { it.isNotEmpty() }
+    ?.let(::file)
+    ?: rootProject.file("play-service-account.json")
+val hasPlayCreds = playCredsFile.exists() || !System.getenv("ANDROID_PUBLISHER_CREDENTIALS").isNullOrEmpty()
+
+play {
+    enabled.set(hasPlayCreds)
+    if (playCredsFile.exists()) {
+        serviceAccountCredentials.set(playCredsFile)
+    }
+    track.set(prop("playTrack").ifEmpty { "internal" })
+    defaultToAppBundles.set(true)
+    releaseStatus.set(ReleaseStatus.COMPLETED)
+    if (hasPlayCreds) {
+        resolutionStrategy.set(ResolutionStrategy.AUTO)
+    }
+}
 
 room {
     schemaDirectory("$projectDir/schemas")

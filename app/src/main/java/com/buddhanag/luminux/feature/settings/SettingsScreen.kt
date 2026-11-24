@@ -289,7 +289,7 @@ private fun ColumnScope.LookPage(
 
 private const val PRIVACY_POLICY_URL = "https://github.com/BuddhaNag12/luminux-android/blob/main/PRIVACY.md"
 private const val SUPPORT_URL = "https://github.com/BuddhaNag12/luminux-android/issues"
-private const val SUPPORT_EMAIL = "buddhanag12@gmail.com"
+private const val SUPPORT_EMAIL = "apps.buddhanag@gmail.com"
 
 private fun openInAppBrowser(context: Context, url: String, accentArgb: Int) {
     val scheme = CustomTabColorSchemeParams.Builder().setToolbarColor(accentArgb).build()
